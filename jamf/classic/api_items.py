@@ -130,12 +130,12 @@ api_values = {
         "fonts",
         "plugins",
     ],
-    "extension_attributes": "list of dictionaries",
+    "extension_attributes": ["id", "name", "type", "multi_value", "value"],
     "groups_accounts": [
         "computer_group_memberships",
         "local_accounts",
         "user_inventories",
     ],
-    "iphones": "",
-    "configuration_profiles": "list of dictionaries",
+    "iphones": [],
+    "configuration_profiles": ["id", "name", "uuid", "is_removable"],
 }

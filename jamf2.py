@@ -1,13 +1,12 @@
 import argparse
-import configparser
 import json
-import os
+
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
-from common import Requester, get_logger
+from tosnipe import ToSnipe
 from jamf import UAPI, Classic
-from snipe import Snipe
+
 
 VALID_SUBSET = [
     "general",
@@ -27,111 +26,29 @@ COMPUTER_INFO = {}
 MOBILE_INFO = {}
 
 
-class Jamf2Snipe(Requester):
-    def __init__(
-        self,
-    ):
-        self.args = self._get_args()
-        self.level = None
-        self.log = self._log_leveler()
-        self.env_vars = False
+class Jamf2Snipe(ToSnipe):
+    def __init__(self, env_vars=False):
+        self.env_vars = env_vars
+        self.args = self._get_jamf2_args()
+        super().__init__()
+
         self.config = self.set_conf()
-        self.apple_manufacturer_id = 1
         self.jamf = Classic(ci=self.env_vars, level=self.level)
         self.jamf_uapi = UAPI(ci=self.env_vars, level=self.level)
-        self.snipe = Snipe(
-            level=self.level,
-        )
-        self.total_number = 0
-        self.created_assets = {}
         self.start_up_test = self.run_tests()
-        super(Jamf2Snipe, self).__init__()
 
-    def _log_leveler(self):
-        if self.args.verbose:
-            self.level = "INFO"
-        elif self.args.debug:
-            self.level = "DEBUG"
-        else:
-            self.level = "WARNING"
+    def _get_jamf2_args(self) -> argparse.Namespace:
+        runtimeargs = self._get_snipe_args()
 
-        return get_logger(
-            level=self.level,
-            log_file=self.args.log_to_file,
-            log_location=self.args.log_file,
-            disable_requests_logging=self.args.disable_requests_logging,
-        )
-
-    def _get_args(self) -> argparse.Namespace:
-        runtimeargs = argparse.ArgumentParser()
         runtimeargs.add_argument(
             "--auto_incrementing",
             help="You can use this if you have auto-incrementing enabled in your snipe instance to utilize that instead of adding the Jamf ID for the asset tag.",
             action="store_true",
         )
         runtimeargs.add_argument(
-            "-d",
-            "--debug",
-            help="Sets logging to include additional DEBUG messages.",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
-            "--disable-requests-logging",
-            help="In debug logging disables the requests library logs",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
             "--do_not_update_jamf",
             help="Does not update Jamf with the asset tags stored in Snipe.",
             action="store_false",
-        )
-        runtimeargs.add_argument(
-            "--do_not_verify_ssl",
-            help="Skips SSL verification for all requests. Helpful when you use self-signed certificate.",
-            action="store_false",
-        )
-        runtimeargs.add_argument(
-            "--dryrun",
-            help="This checks your config and tries to contact both the JAMFPro and Snipe-it instances, but exits before updating or syncing any assets.",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
-            "-f",
-            "--force",
-            help="Updates the Snipe asset with information from Jamf every time, despite what the timestamps indicate.",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
-            "-l",
-            "--log-to-file",
-            help="Output log results to file.",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
-            "-lf",
-            "--log-file",
-            help="location of log file. defaults to sync2snipe-$date.log.",
-            default="",
-            type=str,
-        )
-        runtimeargs.add_argument(
-            "-rt",
-            "--run-tests",
-            help="Run startup tests to see if hosts are reachable.",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
-            "-s",
-            "--settings-file",
-            help="location of settings file. defaults to settings.json.",
-            default="settings.json",
-            type=str,
-        )
-        runtimeargs.add_argument(
-            "-v",
-            "--verbose",
-            help="Sets the logging level to INFO and gives you a better idea of what the script is doing.",
-            action="store_true",
         )
         user_opts = runtimeargs.add_mutually_exclusive_group()
         user_opts.add_argument(
@@ -173,11 +90,6 @@ class Jamf2Snipe(Requester):
         )
 
         return runtimeargs.parse_args()
-
-    def load_conf(self, conf_path: str) -> SimpleNamespace:
-        with open(conf_path, "r") as c:
-            c.seek(0)
-            return json.load(c, object_hook=lambda x: SimpleNamespace(**x))
 
     def set_conf(self) -> SimpleNamespace:
         """
@@ -235,38 +147,6 @@ class Jamf2Snipe(Requester):
 
         return self.validate_conf()
 
-    def validate_conf(self) -> configparser.ConfigParser:
-        """
-        Find a valid settings.conf file.
-        """
-        self.log.info("Searching for a valid settings.conf file.")
-
-        valid_opts = [
-            "/opt/stuff2snipe/settings.json",
-            "/etc/stuff2snipe/settings.json",
-        ]
-
-        if self.args.settings_file != "settings.json":
-            if os.path.exists(self.args.settings_file):
-                return self.load_conf(self.args.settings_file)
-            else:
-                self.log.info(
-                    f"{self.args.settings_file} does not exist. checking default"
-                )
-        else:
-            if os.path.exists(self.args.settings_file):
-                return self.load_conf(self.args.settings_file)
-
-        self.log.info(
-            f"{self.args.settings_file} does not exist. checking remaining options."
-        )
-
-        for opt in valid_opts:
-            if os.path.exists(opt):
-                return self.load_conf(opt)
-
-        raise SystemExit(self.log.info("no valid settings file could be found."))
-
     def run_tests(self) -> bool:
         if self.args.run_tests:
             # Report if we're verifying SSL or not.
@@ -298,7 +178,7 @@ class Jamf2Snipe(Requester):
             """
             JAMF_UP = True
             if hasattr(self.config.jamf, "skip_test"):
-                if self.config.jamf.skip_test != True:
+                if self.config.jamf.skip_test is not True:
                     try:
                         JAMF_UP = (
                             True
@@ -343,31 +223,13 @@ class Jamf2Snipe(Requester):
 
         return True
 
-    def _asset_by_serial(self, serial: str) -> dict:
-        asset_info = {k: v for k, v in COMPUTER_INFO.items() if v["serial"] == serial}
-
-        return asset_info
-
-    def _asset_creator(self, asset: dict) -> None:
-        self.log.info(f"creating a new asset: {asset}")
-        res = self.snipe.create_asset(
-            asset_tag=asset["asset_tag"],
-            status_id=asset["status_id"],
-            model_id=asset["model_id"],
-            **{
-                k: v
-                for k, v in asset.items()
-                if k not in ["asset_tag", "status_id", "model_id"]
-            },
-        )
-        self.created_assets[asset["serial"]] = res["payload"]["id"]
-        self.log.debug(
-            f"response from creating asset: {res['messages']} : {res['payload']}"
-        )
-
-    def _attribute_adder(self, asset_info: dict) -> dict:
+    def _attribute_adder(self, asset_info: dict, asset_type: str) -> dict:
         attributes = {}
-        mapping = self.config.computers_mapping.__dict__
+        if asset_type == "computer":
+            mapping = self.config.computers_mapping.__dict__
+        if asset_type == "mobile":
+            mapping = self.config.mobile_mapping.__dict__
+
         for name, values in mapping.items():
             self.log.debug(f"checking for match on {name}")
             for i, item in enumerate(values):
@@ -383,6 +245,8 @@ class Jamf2Snipe(Requester):
                                 jamf_value = attribute["value"]
                                 self.log.debug(f"match on {item}: {jamf_value}")
                     else:
+                        self.log.debug(item)
+                        self.log.debug(jamf_value)
                         jamf_value = jamf_value[item]
                         self.log.debug(f"match on {item}: {jamf_value}")
 
@@ -390,18 +254,10 @@ class Jamf2Snipe(Requester):
 
         return attributes
 
-    def _checkout_snipe_assets(self, asset_id: int, assigned_user: str) -> None:
-        res = self.snipe.checkout_asset(
-            asset_id=asset_id,
-            status_id=self.snipe.default_status,
-            checkout_to_type="user",
-            assigned_user=assigned_user,
-        )
-        self.log.debug(f"response from checking out device: {res}")
-
     def _gather_all_jamf_machine_info(
         self, machine_id: int, machine_type: str, update_dict: str
     ) -> None:
+
         valid_opts = {
             "computer": {
                 "endpoint": "computers",
@@ -416,7 +272,7 @@ class Jamf2Snipe(Requester):
                 "report_time": "last_inventory_update",
             },
         }
-        if machine_type.lower() not in list(valid_opts.keys()):
+        if machine_type.lower() not in valid_opts:
             self.log.debug(f"{machine_type.lower()} not in {list(valid_opts.keys())}")
             return
 
@@ -441,20 +297,12 @@ class Jamf2Snipe(Requester):
         }
 
         # add the remaining top level keys from the jamf response.
+
         [
             update_dict[machine_id].update({item: res[item]})
             for item in res
             if not update_dict[machine_id].get(item)
         ]
-
-    def _model_creator(self, model: dict) -> None:
-        res = self.snipe.create_models(
-            name=model["name"],
-            model_number=model["model_number"],
-            category_id=model["category_id"],
-            manufacturer_id=model["manufacturer_id"],
-        )
-        self.log.info(f"response from creating {model['name']}: {res}")
 
     def _sync_asset_tags(
         self, asset_tag: str, machine_id: str, machine_type: str, serial: str
@@ -465,10 +313,6 @@ class Jamf2Snipe(Requester):
             machine_type=machine_type,
         )
         self.log.debug(f"response from updating {serial} in jamf: {res.text}")
-
-    def _update_snipe_machines(self, serial: str, machine_id: int, **kwargs) -> None:
-        res = self.snipe.patch_asset(asset_id=machine_id, **kwargs)
-        self.log.debug(f"response from updating {serial}: {res}")
 
     def asset_tag_sync(
         self,
@@ -486,7 +330,7 @@ class Jamf2Snipe(Requester):
             snipe_machine = [i for i in snipe_machines if serial == i["serial"]][0]
             asset_info = {k: v for k, v in update_dict.items() if v["serial"] == serial}
 
-            if not len(asset_info.keys()):
+            if not asset_info.keys():
                 continue
 
             asset_info = asset_info[next(iter(asset_info))]
@@ -521,56 +365,8 @@ class Jamf2Snipe(Requester):
                     update["serial"],
                 )
 
-    def checkout_assets(self, assets: list[dict]) -> None:
-        if assets:
-            if len(assets):
-                with ThreadPoolExecutor(max_workers=10) as executor:
-                    for asset in assets:
-                        executor.submit(
-                            self._checkout_snipe_assets,
-                            asset["asset_id"],
-                            asset["assigned_user"],
-                        )
-
-    def create_new_asset(self, new_assets: list) -> None:
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            for asset in new_assets:
-                if self.args.dryrun:
-                    self.log.info(f"would be creating a new asset: {asset}")
-                    continue
-                executor.submit(self._asset_creator, asset)
-
-    def create_new_snipe_models(self, models: list[str], model_info: dict) -> None:
-        """
-        create all the new models after gathering machine info
-        """
-        new_models = []
-        for model in models:
-            if model != "":
-                self.log.info(f"Could not find a model ID in snipe for: {model}")
-                new_model = {
-                    "category_id": self.config.snipe_it.computer_model_category_id,
-                    "manufacturer_id": self.apple_manufacturer_id,
-                    "name": model,
-                    "model_number": model_info[model],
-                }
-
-                if hasattr(self.config.snipe_it, "computer_custom_fieldset_id"):
-                    fieldset_split = self.config.snipe_it.computer_custom_fieldset_id
-                    new_model["fieldset_id"] = fieldset_split
-
-                if self.args.dryrun:
-                    self.log.info(f"would be creating new model: {new_model}")
-                    continue
-
-                new_models.append(new_model)
-
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            for model in new_models:
-                executor.submit(self._model_creator, model)
-
     def existing_update_check(
-        self, existing_snipe_serials: list, snipe_machines: dict
+        self, asset_type: str, existing_snipe_serials: list, snipe_machines: dict
     ) -> dict[int:[dict]]:
         self.log.info("checking which machines in snipe need to be updated")
 
@@ -581,7 +377,7 @@ class Jamf2Snipe(Requester):
                 k: v for k, v in COMPUTER_INFO.items() if v["serial"] == serial
             }
 
-            if not len(asset_info.keys()):
+            if not asset_info.keys():
                 continue
 
             snipe_id = snipe_machine["id"]
@@ -600,9 +396,11 @@ class Jamf2Snipe(Requester):
                     f"Updating {serial} in snipe because jamf has a more recent timestamp: {jamf_update_time} > {snipe_update_time}"
                 )
             try:
-                payload = self._attribute_adder(asset_info=asset_info)
+                payload = self._attribute_adder(
+                    asset_info=asset_info, asset_type=asset_type
+                )
                 self.log.debug(f"generated payload: {payload}")
-            except:
+            except Exception:
                 self.log.debug(
                     "Skipping the payload, because the jamf key we're mapping to doesn't exist"
                 )
@@ -644,15 +442,17 @@ class Jamf2Snipe(Requester):
 
         return updates
 
-    def generate_asset_tag(self, asset_type: str, serials: str) -> list[dict]:
+    def generate_asset_tag(
+        self, asset_type: str, serials: str, update_dict: dict
+    ) -> list[dict]:
         self.log.info("checking what we need to generate asset tags for")
         new_assets = []
 
         for serial in serials:
-            asset_info = self._asset_by_serial(serial=serial)
+            asset_info = self._asset_by_serial(serial=serial, machine_dict=update_dict)
             # there is only one key in this dictionary.
             # key off that to get the value dict info.
-            if not len(asset_info.keys()):
+            if not asset_info.keys():
                 continue
 
             asset_info = asset_info[next(iter(asset_info))]
@@ -710,48 +510,19 @@ class Jamf2Snipe(Requester):
 
         return jamf_computers, jamf_mobiles
 
-    def get_models(self) -> dict:
-        """
-        get a list of known models from Snipe-IT
-        """
-        self.log.info("Getting a list of computer models currently in Snipe-IT.")
+    def prepare_asset_checkout(
+        self, assets: list, snipe_machines: dict, update_dict: dict
+    ) -> list[dict]:
 
-        snipe_models = self.snipe.get_models()
-        self.log.debug(
-            f"Parsing the {snipe_models['rows']} model results for models with model numbers."
-        )
-
-        for model in snipe_models["rows"]:
-            if model["model_number"] == "":
-                self.log.debug(
-                    f"The model, {model['name']}, did not have a model number. Skipping."
-                )
-                continue
-
-            self.snipe.model_numbers[model["model_number"]] = model["id"]
-
-        self.log.info(
-            f"Our list of models has {len(self.snipe.model_numbers)} entries."
-        )
-        self.log.debug(
-            f"""
-            Here's the list of the models and their id's that we were able to collect:
-            {self.snipe.model_numbers}
-            """
-        )
-
-        return snipe_models
-
-    def prepare_asset_checkout(self, assets: list, snipe_machines: dict) -> list[dict]:
         mapping = self.config.user_mapping.jamf_api_field
 
         if len(mapping) != 2:
-            self.log.error(f"the jamf user mapping must be a list with two values.")
+            self.log.error("the jamf user mapping must be a list with two values.")
             # prune this list?
             self.log.debug(
                 f"acceptable keys and values are: {json.dumps(self.jamf.api_values, sort_keys=True, indent=4)}"
             )
-            return
+            return None
 
         key = mapping[0]
         value = mapping[1]
@@ -759,7 +530,9 @@ class Jamf2Snipe(Requester):
         asset_updates = []
 
         for asset in assets:
-            asset_info = self._asset_by_serial(serial=asset["serial"])
+            asset_info = self._asset_by_serial(
+                serial=asset["serial"], machine_dict=update_dict
+            )
             snipe_machine = [
                 i for i in snipe_machines if asset["serial"] == i["serial"]
             ]
@@ -767,11 +540,11 @@ class Jamf2Snipe(Requester):
             if (
                 not (
                     (self.args.users or self.args.users_inverse)
-                    and (snipe_machine["assigned_to"] == None) == self.args.users
+                    and (snipe_machine["assigned_to"] is None) == self.args.users
                 )
                 or self.args.users_force
             ):
-                return
+                return None
 
             if snipe_machine["status_label"]["status_meta"] in (
                 "deployable",
@@ -806,62 +579,6 @@ class Jamf2Snipe(Requester):
 
         return asset_updates
 
-    def update_existing_snipe(self, updates: dict) -> None:
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            for machine_id, vals in updates.items():
-                if vals["payload"]:
-                    self.log.debug(f"payload for {vals['serial']} : {vals['payload']}")
-                    if self.args.dryrun:
-                        self.log.debug(
-                            f"would be updating snipe machine(serial: {vals['serial']} - id: {machine_id}) with: {vals['payload']}"
-                        )
-                        continue
-                    executor.submit(
-                        self._update_snipe_machines,
-                        vals["serial"],
-                        machine_id,
-                        **vals["payload"],
-                    )
-
-    def update_new_asset_info(self, new_assets: list) -> list[dict]:
-        update_info = []
-        for asset in new_assets:
-            try:
-                new_asset = {
-                    "asset_tag": asset["tag"],
-                    "model_id": self.snipe.model_numbers[
-                        asset["info"]["model_identifier"]
-                    ],
-                    "name": asset["info"]["name"],
-                    "status_id": self.snipe.default_status,
-                    "serial": asset["info"]["serial"],
-                }
-
-            # TODO: handle this better
-            except Exception as e:
-                self.log.info(f"encountered error putting together new asset: {e}")
-                continue
-
-            if asset["info"]["serial"] == "Not Available":
-                self.log.warning(
-                    """
-                    The serial number is not available in JAMF.
-                    This is normal for DEP enrolled devices that have not yet checked in for the first time.
-                    Since there's no serial number yet, we'll skip it for now.
-                    """
-                )
-                continue
-
-            new_asset.update(self._attribute_adder(asset_info=asset["info"]))
-
-            if self.args.auto_incrementing:
-                self.log.debug(f"popping asset_tag off: {new_asset}")
-                new_asset.pop("asset_tag", None)
-
-            update_info.append(new_asset)
-
-        return update_info
-
     def update_machines(self, machines: list[dict], machine_type: str):
         update_type = {
             "computer": COMPUTER_INFO,
@@ -872,6 +589,7 @@ class Jamf2Snipe(Requester):
         machine_ids = [m["id"] for m in machines]
 
         # quickly grab all the machine info so we dont have to loop through each machine
+        self.log.info(f"getting all info for {machine_type}'s from jamf")
         with ThreadPoolExecutor(max_workers=10) as executor:
             for mid in machine_ids:
                 executor.submit(
@@ -894,7 +612,7 @@ class Jamf2Snipe(Requester):
 
         # get a list of existing snipe machines
         snipe_machines = self.snipe.get_all_hardware()
-        existing_snipe_serials = list(set([i["serial"] for i in snipe_machines]))
+        existing_snipe_serials = list({[i["serial"] for i in snipe_machines]})
         self.log.debug(f"following machines exist in snipe: {existing_snipe_serials}")
         jamf_serials = [update_dict[i]["serial"] for i in update_dict]
         self.log.debug(f"following machines exist in jamf: {jamf_serials}")
@@ -903,7 +621,7 @@ class Jamf2Snipe(Requester):
         missing_machines = [
             i for i in jamf_serials if i not in existing_snipe_serials and len(i)
         ]
-        if not len(missing_machines):
+        if not missing_machines:
             self.log.info("all machines in jamf exist in snipe")
         else:
             self.log.info(
@@ -911,9 +629,11 @@ class Jamf2Snipe(Requester):
             )
         # generate, update, and create new assets.
         new_assets = self.generate_asset_tag(
-            serials=missing_machines, asset_type=machine_type
+            serials=missing_machines, asset_type=machine_type, update_dict=update_dict
         )
-        new_asset_tags = self.update_new_asset_info(new_assets=new_assets)
+        new_asset_tags = self.update_new_asset_info(
+            asset_type=machine_type, new_assets=new_assets
+        )
         self.create_new_asset(new_assets=new_asset_tags)
         # get the asset tags sync'd up
         self.asset_tag_sync(
@@ -925,25 +645,24 @@ class Jamf2Snipe(Requester):
 
         # checkout to users if args specify it
         prepared_assets = self.prepare_asset_checkout(
-            assets=new_asset_tags, snipe_machines=snipe_machines
+            assets=new_asset_tags,
+            snipe_machines=snipe_machines,
+            update_dict=update_dict,
         )
         self.checkout_assets(assets=prepared_assets)
 
         # only update the existing machines if jamf has more recent info
         updates = self.existing_update_check(
-            existing_snipe_serials=existing_snipe_serials, snipe_machines=snipe_machines
+            asset_type=machine_type,
+            existing_snipe_serials=existing_snipe_serials,
+            snipe_machines=snipe_machines,
         )
         self.update_existing_snipe(updates=updates)
 
 
-def main():
-    j2s = Jamf2Snipe()
-
-    j2s.get_models()
-    jamf_computers, jamf_mobiles = j2s.get_active_ids()
-    j2s.update_machines(machines=jamf_computers, machine_type="computer")
-    j2s.update_machines(machines=jamf_mobiles, machine_type="mobile")
-
-
 if __name__ == "__main__":
-    main()
+    j2s = Jamf2Snipe()
+    j2s.get_models()
+    computers, mobiles = j2s.get_active_ids()
+    j2s.update_machines(machines=computers, machine_type="computer")
+    j2s.update_machines(machines=mobiles, machine_type="mobile")

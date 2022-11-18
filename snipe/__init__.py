@@ -48,9 +48,10 @@ class Snipe(
         self,
         users_no_search=True,
         default_status=2,
+        env_vars=False,
         level="INFO",
     ):
-        self.config = Auth().get_config("SNIPE_TOKEN", "SNIPE_URL")
+        self.config = Auth(env_var=env_vars).get_config("SNIPE_TOKEN", "SNIPE_URL")
         self.default_status = default_status
         self.base_url = self.url_handler(self.config.SNIPE_URL, "base") + "api/v1/"
         self.token = self.config.SNIPE_TOKEN
