@@ -49,13 +49,13 @@ class Users:
         </user>
         """.strip()
 
-        return self._requester("POST", "/users/id/0", xml_return=True, data=body)
+        return self._requester("POST", "/users/id/0", raw=True, data=body)
 
     def create_static_user_group(self, name: str) -> requests.Response:
         return self._requester(
             "POST",
             "/usergroups/id/0",
-            xml_return=True,
+            raw=True,
             data=self._user_group_template_static(name),
         )
 
@@ -66,5 +66,5 @@ class Users:
         delete: {"user_group": {"user_deletions": {"user": []}}}
         """
         return self._requester(
-            "POST", f"/usergroups/id/{group_id}", xml_return=True, data=data
+            "POST", f"/usergroups/id/{group_id}", raw=True, data=data
         )

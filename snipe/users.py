@@ -68,19 +68,19 @@ class Users:
 
         return self._requester("POST", "users", json=payload)
 
-    def get_user(self, user_id: str) -> dict:
+    def get_user(self, user_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/usersid
         """
-        return self._requester("POST", f"users/{user_id: str}")
+        return self._requester("POST", f"users/{user_id: int}")
 
-    def delete_user(self, user_id: str) -> dict:
+    def delete_user(self, user_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/usersid-1
         """
         return self._requester("DELETE", f"users/{user_id}")
 
-    def update_user(self, method: str, user_id: str, **kwargs) -> dict:
+    def update_user(self, method: str, user_id: int, **kwargs) -> dict:
         """
         https://snipe-it.readme.io/reference/usersid-2
         https://snipe-it.readme.io/reference/users-3
@@ -112,7 +112,7 @@ class Users:
 
         return self._requester(method.upper(), f"users/{user_id}", json=payload)
 
-    def get_users_items(self, user_id: str, item_type: str) -> dict:
+    def get_users_items(self, user_id: int, item_type: str) -> dict:
         """
         https://snipe-it.readme.io/reference/usersidassets
         https://snipe-it.readme.io/reference/usersidaccessories

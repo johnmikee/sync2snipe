@@ -12,19 +12,19 @@ class Companies:
         payload = {"name": name}
         return self._requester("POST", "companies", json=payload)
 
-    def get_company_detail(self, company_id: str) -> dict:
+    def get_company_detail(self, company_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/companiesid
         """
         return self._requester("GET", f"companies/{company_id}")
 
-    def delete_company(self, company_id: str) -> dict:
+    def delete_company(self, company_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/companiesid-3
         """
         return self._requester("DELETE", f"companies/{company_id}")
 
-    def update_company_detail(self, company_id: str, name: str) -> dict:
+    def update_company_detail(self, company_id: int, name: str) -> dict:
         """
         https://snipe-it.readme.io/reference/companiesid-1
         """

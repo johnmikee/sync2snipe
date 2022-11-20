@@ -20,6 +20,7 @@ class ToSnipe:
             level=self.level,
         )
         self.created_assets = {}
+        self.models = self.get_models()
 
     def _log_leveler(self):
         if self.args.verbose:

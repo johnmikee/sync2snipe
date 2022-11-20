@@ -1,5 +1,7 @@
 from .errors import InvalidAPIArg
 
+from .api_items import arg_checker
+
 
 class General:
     def get_all_machines(self, **kwargs) -> dict:
@@ -24,61 +26,26 @@ class General:
         """
         return self._requester("GET", f"/{endpoint}/id/{machine_id}")[device_type]
 
-    def get_general_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["general"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['general']}"
-            )
+    def general_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="general", value=arg, info=info)
 
-        return info["general"][arg]
+    def hardware_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="hardware", value=arg, info=info)
 
-    def get_hardware_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["hardware"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['hardware']}"
-            )
+    def location_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="location", value=arg, info=info)
 
-        return info["hardware"][arg]
+    def purchasing_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="purchasing", value=arg, info=info)
 
-    def get_location_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["location"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['location']}"
-            )
+    def security_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="security", value=arg, info=info)
 
-        return info["location"][arg]
+    def software_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="software", value=arg, info=info)
 
-    def get_purchasing_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["purchasing"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['purchasing']}"
-            )
-
-        return info["purchasing"][arg]
-
-    def get_security_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["security"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['security']}"
-            )
-
-        return info["security"][arg]
-
-    def get_software_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["software"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['software']}"
-            )
-
-        return info["software"][arg]
-
-    def get_group_account_info(self, arg: str, info: dict) -> dict:
-        if arg not in self.api_values["groups_accounts"]:
-            raise InvalidAPIArg(
-                f"{arg} not acceptable search paramater. Valid options are: {self.api_values['groups_accounts']}"
-            )
-
-        return info["groups_accounts"][arg]
+    def group_account_info(self, arg: str, info: dict) -> dict:
+        return arg_checker(key="groups_accounts", value=arg, info=info)
 
     def update_machine(
         self,

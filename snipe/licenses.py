@@ -43,19 +43,19 @@ class Licenses:
 
         return self._requester("POST", "licenses", json=payload)
 
-    def get_license(self, license_id: str) -> dict:
+    def get_license(self, license_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/licensesid
         """
         return self._requester("GET", f"licenses/{license_id}")
 
-    def delete_license(self, license_id: str) -> dict:
+    def delete_license(self, license_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/licensesid-3
         """
         return self._requester("DELETE", f"licenses/{license_id}")
 
-    def update_license(self, method: str, license_id: str, **kwargs) -> dict:
+    def update_license(self, method: str, license_id: int, **kwargs) -> dict:
         """
         https://snipe-it.readme.io/reference/licensesid-1
         https://snipe-it.readme.io/reference/licensesid-2

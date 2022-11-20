@@ -446,6 +446,7 @@ class Jamf2Snipe(ToSnipe):
         self, asset_type: str, serials: str, update_dict: dict
     ) -> list[dict]:
         self.log.info("checking what we need to generate asset tags for")
+
         new_assets = []
 
         for serial in serials:
@@ -490,7 +491,7 @@ class Jamf2Snipe(ToSnipe):
             hasattr(self.config.jamf, "computer_group_id")
             and self.config.jamf.computer_group_id
         ):
-            self.log.info("getting list of computers from jamf by computer group id.")
+            self.log.info("Getting list of computers from jamf by computer group id.")
             jamf_computers = self.jamf.get_computers_by_group(
                 group_id=self.config.jamf.computer_group_id
             )
@@ -501,7 +502,7 @@ class Jamf2Snipe(ToSnipe):
             hasattr(self.config.jamf, "mobile_group_id")
             and self.config.jamf.mobile_group_id
         ):
-            self.log.info("getting list of mobiles from jamf by mobile group id.")
+            self.log.info("Getting list of mobiles from jamf by mobile group id.")
             jamf_mobiles = self.jamf.get_mobile_by_group(
                 self.config.jamf.mobile_group_id
             )
@@ -589,7 +590,7 @@ class Jamf2Snipe(ToSnipe):
         machine_ids = [m["id"] for m in machines]
 
         # quickly grab all the machine info so we dont have to loop through each machine
-        self.log.info(f"getting all info for {machine_type}'s from jamf")
+        self.log.info(f"Getting all info for {machine_type}'s from jamf")
         with ThreadPoolExecutor(max_workers=10) as executor:
             for mid in machine_ids:
                 executor.submit(
@@ -612,7 +613,10 @@ class Jamf2Snipe(ToSnipe):
 
         # get a list of existing snipe machines
         snipe_machines = self.snipe.get_all_hardware()
-        existing_snipe_serials = list({[i["serial"] for i in snipe_machines]})
+
+        # make sure they are unique
+        existing_snipe_serials = list(set([i["serial"] for i in snipe_machines]))
+
         self.log.debug(f"following machines exist in snipe: {existing_snipe_serials}")
         jamf_serials = [update_dict[i]["serial"] for i in update_dict]
         self.log.debug(f"following machines exist in jamf: {jamf_serials}")
@@ -662,7 +666,6 @@ class Jamf2Snipe(ToSnipe):
 
 if __name__ == "__main__":
     j2s = Jamf2Snipe()
-    j2s.get_models()
     computers, mobiles = j2s.get_active_ids()
     j2s.update_machines(machines=computers, machine_type="computer")
     j2s.update_machines(machines=mobiles, machine_type="mobile")

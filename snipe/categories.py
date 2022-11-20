@@ -23,20 +23,20 @@ class Categories:
 
         return self._requester("GET", "categories", json=payload)
 
-    def get_category(self, category_id: str) -> dict:
+    def get_category(self, category_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/categoriesid-3
         """
         return self._requester("GET", f"categories/{category_id}")
 
-    def delete_category(self, category_id: str) -> dict:
+    def delete_category(self, category_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/categoriesid-2
         """
         return self._requester("DELETE", f"categories/{category_id}")
 
     def update_category(
-        self, method: str, category_id: str, name: str, category_type: str, **kwargs
+        self, method: str, category_id: int, name: str, category_type: str, **kwargs
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/categoriesid

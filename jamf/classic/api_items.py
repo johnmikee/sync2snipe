@@ -1,3 +1,15 @@
+from .errors import InvalidAPIArg
+
+
+def arg_checker(value: str, key: str, info: dict) -> any:
+    if value not in api_values[key]:
+        raise InvalidAPIArg(
+            f"""{value} not acceptable search paramater.
+            Valid options are: {api_values[key]}"""
+        )
+    return info[key][value]
+
+
 api_values = {
     "general": [
         "id",

@@ -58,13 +58,13 @@ class Components:
 
         return self._requester("POST", "components", json=payload)
 
-    def get_component(self, component_id: str) -> dict:
+    def get_component(self, component_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/componentsid
         """
         return self._requester("GET", f"components/{component_id}")
 
-    def delete_component(self, component_id: str) -> dict:
+    def delete_component(self, component_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/componentsid-3
         """
@@ -73,7 +73,7 @@ class Components:
     def update_component(
         self,
         method: str,
-        component_id: str,
+        component_id: int,
         name: str,
         qty: int,
         category_id: int,
@@ -103,14 +103,14 @@ class Components:
             method.upper(), f"components/{component_id}", json=payload
         )
 
-    def get_checkedout_components(self, component_id: str) -> dict:
+    def get_checkedout_components(self, component_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/componentsidassets
         """
         return self._requester("DELETE", f"components/{component_id}/assets")
 
     def checkout_components(
-        self, component_id: str, assigned_to: int, assigned_qty: int
+        self, component_id: int, assigned_to: int, assigned_qty: int
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/componentsidcheckout
@@ -121,7 +121,7 @@ class Components:
             "POST", f"components/{component_id}/checkout", json=payload
         )
 
-    def checkin_components(self, component_id: str, checkin_qty: int) -> dict:
+    def checkin_components(self, component_id: int, checkin_qty: int) -> dict:
         """
         https://snipe-it.readme.io/reference/componentsidcheckin
         """

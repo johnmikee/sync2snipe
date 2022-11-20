@@ -61,7 +61,7 @@ class Accessories:
 
         return self._requester("POST", "accessories", json=payload)
 
-    def get_accessory(self, accessory_id: str) -> dict:
+    def get_accessory(self, accessory_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/accessoriesid
         """
@@ -70,7 +70,7 @@ class Accessories:
     def update_accessory(
         self,
         method: str,
-        accessory_id: str,
+        accessory_id: int,
         name: str,
         qty: int,
         category_id: int,
@@ -104,26 +104,26 @@ class Accessories:
             method.upper(), f"accessories/{accessory_id}", json=payload
         )
 
-    def delete_accessory(self, accessory_id: str) -> dict:
+    def delete_accessory(self, accessory_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/accessoriesid-3
         """
         return self._requester("DELETE", f"accessories/{accessory_id}")
 
-    def get_co_accessory(self, accessory_id: str) -> dict:
+    def get_co_accessory(self, accessory_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/accessoriesidcheckedout
         """
         return self._requester("GET", f"accessories/{accessory_id}/checkedout")
 
-    def checkin_accessory(self, accessory_id: str) -> dict:
+    def checkin_accessory(self, accessory_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/accessoriesidcheckin
         """
         return self._requester("POST", f"accessories/{accessory_id}/checkout")
 
     def checkout_accessory(
-        self, accessory_id: str, assigned_to: int, note=None
+        self, accessory_id: int, assigned_to: int, note=None
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/accessoriesidcheckedout-1

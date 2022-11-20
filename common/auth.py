@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 
 class Auth:
-    def __init__(self, keychain_username="stuff2snipe", env_var=False):
+    def __init__(self, keychain_username="sync2snipe", env_var=False):
         self.env_var = env_var
         self.log = get_logger()
         self.keychain_username = keychain_username
@@ -24,7 +24,7 @@ class Auth:
         except keyring.errors.NoKeyringError:
             self.log.info("No keyring found")
 
-        key_name = cred_type + "_stuff2snipe"
+        key_name = cred_type + "_sync2snipe"
         self.log.debug(f" - Getting creds for: {key_name}")
 
         if sys.platform == "darwin" and api_key:

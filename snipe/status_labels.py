@@ -41,20 +41,20 @@ class StatusLabels:
 
         return self._requester("POST", "statuslabels", json=payload)
 
-    def get_status_label(self, label_id: str) -> dict:
+    def get_status_label(self, label_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/statuslabelsid
         """
         return self._requester("GET", f"statuslabels/{label_id}")
 
-    def delete_status_label(self, label_id: str) -> dict:
+    def delete_status_label(self, label_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/statuslabelsid-1
         """
         return self._requester("DELETE", f"statuslabels/{label_id}")
 
     def update_status_label(
-        self, method: str, label_id: str, name: str, label_type: str, **kwargs
+        self, method: str, label_id: int, name: str, label_type: str, **kwargs
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/statuslabelsid-2
@@ -79,7 +79,7 @@ class StatusLabels:
 
         return self._requester(method.upper(), f"statuslabels/{label_id}", json=payload)
 
-    def get_assets_by_label(self, label_id: str) -> dict:
+    def get_assets_by_label(self, label_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/statuslabelsidassetlist
         """

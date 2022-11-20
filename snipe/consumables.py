@@ -66,13 +66,13 @@ class Consumables:
 
         return self._requester("POST", "consumables", json=payload)
 
-    def get_consumable(self, consumbable_id: str) -> dict:
+    def get_consumable(self, consumbable_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/consumablesid
         """
         return self._requester("GET", f"consumables/{consumbable_id}")
 
-    def delete_consumable(self, consumbable_id: str) -> dict:
+    def delete_consumable(self, consumbable_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/consumablesid-2
         """
@@ -81,7 +81,7 @@ class Consumables:
     def update_consumable(
         self,
         method: str,
-        consumbable_id: str,
+        consumbable_id: int,
         name: str,
         qty: int,
         category_id: int,
@@ -110,13 +110,13 @@ class Consumables:
             raise self.InvalidArg(f"{method} must be either PATCH or PUT")
         return self._requester(method, f"consumables/{consumbable_id}", json=payload)
 
-    def checkin_consumbable(self, consumbable_id: str) -> dict:
+    def checkin_consumbable(self, consumbable_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/consumablesidcheckin
         """
         return self._requester("POST", f"consumables/{consumbable_id}/checkin")
 
-    def checkout_consumbable(self, consumbable_id: str, assigned_to=None) -> dict:
+    def checkout_consumbable(self, consumbable_id: int, assigned_to=None) -> dict:
         """
         https://snipe-it.readme.io/reference/consumablesidcheckout
         """

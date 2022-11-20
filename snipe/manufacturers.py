@@ -12,19 +12,19 @@ class Manufacturers:
         payload = {"name": name}
         return self._requester("POST", "manufacturers", json=payload)
 
-    def get_manufacturer(self, manufacturer_id: str) -> dict:
+    def get_manufacturer(self, manufacturer_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/manufacturers
         """
         return self._requester("GET", f"manufacturers/{manufacturer_id}")
 
-    def delete_manufacturer(self, manufacturer_id: str) -> dict:
+    def delete_manufacturer(self, manufacturer_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/manufacturersid-2
         """
         return self._requester("DELETE", f"manufacturers/{manufacturer_id}")
 
-    def update_manufacturer(self, manufacturer_id: str, name: str) -> dict:
+    def update_manufacturer(self, manufacturer_id: int, name: str) -> dict:
         """
         https://snipe-it.readme.io/reference/manufacturersid-3
         """

@@ -31,13 +31,13 @@ class Models:
 
         return self._requester("POST", "models", params=query)
 
-    def get_model(self, model_id: str) -> dict:
+    def get_model(self, model_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/modelsid
         """
         return self._requester("GET", f"models/{model_id}")
 
-    def delete_model(self, model_id: str) -> dict:
+    def delete_model(self, model_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/modelsid-3
         """
@@ -46,7 +46,7 @@ class Models:
     def update_model(
         self,
         method: str,
-        model_id: str,
+        model_id: int,
         name: str,
         category_id: int,
         manufacturer_id: int,

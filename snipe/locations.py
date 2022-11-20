@@ -28,20 +28,20 @@ class Locations:
 
         return self._requester("POST", "locations", json=payload)
 
-    def get_location_detail(self, location_id: str) -> dict:
+    def get_location_detail(self, location_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/locations-1
         """
         return self._requester("GET", f"locations/{location_id}")
 
-    def delete_location(self, location_id: str) -> dict:
+    def delete_location(self, location_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/locationsid-2
         """
         return self._requester("DELETE", f"locations/{location_id}")
 
     def update_location(
-        self, method: str, location_id: str, name: str, **kwargs
+        self, method: str, location_id: int, name: str, **kwargs
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/locations-3
@@ -66,4 +66,4 @@ class Locations:
         if method.upper() not in ["PATCH", "PUT"]:
             raise self.InvalidArg(f"{method} must be either PATCH or PUT")
 
-        return self._requester(method.upper(), f"locations/{icense_id}", json=payload)
+        return self._requester(method.upper(), f"locations/{location_id}", json=payload)

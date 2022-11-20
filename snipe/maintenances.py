@@ -50,7 +50,7 @@ class Maintenances:
 
         return self._requester("POST", "maintenances", json=payload)
 
-    def delete_maintenance(self, maintenance_id: str) -> dict:
+    def delete_maintenance(self, maintenance_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/maintenancesid
         """

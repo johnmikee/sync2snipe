@@ -12,13 +12,13 @@ class Departments:
         payload = {"name": name}
         return self._requester("POST", "departments", json=payload)
 
-    def get_department(self, department_id: str) -> dict:
+    def get_department(self, department_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/departmentsid
         """
         return self._requester("GET", f"departments/{department_id}")
 
-    def delete_department(self, department_id: str) -> dict:
+    def delete_department(self, department_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/departmentsid-2
         """

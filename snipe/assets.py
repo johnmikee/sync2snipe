@@ -66,7 +66,7 @@ class Assets:
         return results
 
     def create_asset(
-        self, asset_tag: str, status_id: str, model_id: str, **kwargs
+        self, asset_tag: str, status_id: int, model_id: int, **kwargs
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-create
@@ -95,7 +95,7 @@ class Assets:
 
         return self._requester("POST", "hardware", json=payload)
 
-    def get_asset_by_id(self, asset_id: str) -> dict:
+    def get_asset_by_id(self, asset_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-by-id
         """
@@ -114,7 +114,7 @@ class Assets:
         return self._requester("GET", f"hardware/byserial/{serial}")
 
     def update_asset(
-        self, asset_id: str, asset_tag: str, status_id: int, model_id: int, **kwargs
+        self, asset_id: int, asset_tag: str, status_id: int, model_id: int, **kwargs
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-update
@@ -143,7 +143,7 @@ class Assets:
 
         return self._requester("PUT", f"hardware/{asset_id}", json=payload)
 
-    def patch_asset(self, asset_id: str, **kwargs) -> dict:
+    def patch_asset(self, asset_id: int, **kwargs) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-partial-update
         """
@@ -171,14 +171,14 @@ class Assets:
 
         return self._requester("PATCH", f"hardware/{asset_id}", json=payload)
 
-    def delete_asset(self, asset_id: str) -> dict:
+    def delete_asset(self, asset_id: int) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-delete
         """
         return self._requester("DELETE", f"hardware/{asset_id}")
 
     def checkout_asset(
-        self, asset_id: str, status_id: int, checkout_to_type: str, **kwargs
+        self, asset_id: int, status_id: int, checkout_to_type: str, **kwargs
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-checkout
@@ -203,7 +203,7 @@ class Assets:
 
         return self._requester("POST", f"hardware/{asset_id}/checkout", json=payload)
 
-    def checkin_asset(self, asset_id: str, **kwargs) -> dict:
+    def checkin_asset(self, asset_id: int, **kwargs) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-checkin
         """
@@ -237,7 +237,7 @@ class Assets:
 
     def get_asset_licenses(
         self,
-        asset_id: str,
+        asset_id: int,
     ) -> dict:
         """
         https://snipe-it.readme.io/reference/hardwareidlicenses
