@@ -1,0 +1,21 @@
+name: Lint all the things
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@bf085276cecdb0cc76fbbe0687a5a0e786646936
+      - name: Set up Python 3.10
+        uses: actions/setup-python@47c4a7af1d72897a511c975c95a5335bb6329dec
+        with:
+          python-version: "3.11"
+
+      - name: Lint
+        run: .github/workflows/lint.sh

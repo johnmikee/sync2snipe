@@ -1,0 +1,21 @@
+{
+    "jamf": {
+    },
+    "snipe_it": {
+        "manufacturer_id": 2,
+        "default_status": 2,
+        "computer_model_category_id": 2,
+        "mobile_model_category_id": 3
+    },
+    "computers_mapping": {
+        "name": ["general", "name"],
+        "_snipeit_mac_address_1": ["general", "mac_address"]
+    },
+    "mobile_mapping": {
+        "_snipeit_imei_4": ["network", "imei"],
+        "name": ["general", "name"]
+    },
+    "user_mapping": {
+        "jamf_api_field": ["location", "username"]
+    }
+}
