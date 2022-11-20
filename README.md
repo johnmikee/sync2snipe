@@ -37,7 +37,7 @@ There are two options to configure:
 
 ## Logging to file
 * Pass `--log-to-file`
-  - By [default](common/logger.pyL#21) this will log to `sync2snipe-$date_stamp.log`
+  - By [default](common/logger.py#L21) this will log to `sync2snipe-$date_stamp.log`
   - To override this pass `--log-file` with the file you wish the logs to be written to.
 
 # Sync Jamf items to Snipe
