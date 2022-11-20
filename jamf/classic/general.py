@@ -1,6 +1,5 @@
-from .errors import InvalidAPIArg
-
 from .api_items import arg_checker
+from .errors import InvalidAPIArg
 
 
 class General:

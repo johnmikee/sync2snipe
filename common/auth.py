@@ -1,13 +1,12 @@
+import getpass
 import os
 import sys
-import getpass
+from types import SimpleNamespace
+
 import keyring
 
 from .errors import InvalidCreds
-
 from .logger import get_logger
-
-from types import SimpleNamespace
 
 
 class Auth:

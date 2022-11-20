@@ -1,8 +1,10 @@
 import datetime
+
 import requests
 
-from .formatter import Formatter
 from common import Auth, Requester, get_logger
+
+from .formatter import Formatter
 
 
 class JamfAuth(Requester, Formatter):

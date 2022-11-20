@@ -1,11 +1,11 @@
+from common import Requester, get_logger
+from jamf.auth import JamfAuth
+
 from .category import Category
 from .computer import Computers
 from .mdm import MDM
 from .mobile_devices import Mobile
 from .utils import Utils
-
-from common import Requester, get_logger
-from jamf.auth import JamfAuth
 
 
 class UAPI(

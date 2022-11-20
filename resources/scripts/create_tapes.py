@@ -1,7 +1,7 @@
 import os
 import shutil
-import sys
 import subprocess
+import sys
 
 TAPE = sys.argv[1]
 OUTPUT_GIF = sys.argv[2]

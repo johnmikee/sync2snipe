@@ -1,13 +1,14 @@
 import argparse
-import configparser
 import json
 import os
-
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
+import configparser
+
 from common import get_logger
 from snipe import Snipe
+
 
 # pylint: disable=E1101
 class ToSnipe:

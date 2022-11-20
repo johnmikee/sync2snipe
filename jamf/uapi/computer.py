@@ -1,7 +1,7 @@
 import os
 
-from .errors import AttachmentError
 from .api_params import computer_opts
+from .errors import AttachmentError
 
 
 class Computers:

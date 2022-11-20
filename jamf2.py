@@ -1,12 +1,10 @@
 import argparse
 import json
-
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
-from tosnipe import ToSnipe
 from jamf import UAPI, Classic
-
+from tosnipe import ToSnipe
 
 VALID_SUBSET = [
     "general",

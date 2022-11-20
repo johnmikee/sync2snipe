@@ -1,13 +1,16 @@
 import requests
 
+from common import Auth, Requester, get_logger
+
 from .accessories import Accessories
 from .api import API
 from .assets import Assets
 from .categories import Categories
 from .companies import Companies
-from .consumables import Consumables
 from .components import Components
+from .consumables import Consumables
 from .departments import Departments
+from .errors import InvalidArg
 from .fields import Fields, FieldSets
 from .licenses import Licenses
 from .locations import Locations
@@ -17,10 +20,6 @@ from .models import Models
 from .reports import Reports
 from .status_labels import StatusLabels
 from .users import Users
-
-from .errors import InvalidArg
-
-from common import Auth, Requester, get_logger
 
 
 class Snipe(

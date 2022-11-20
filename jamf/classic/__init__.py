@@ -1,11 +1,11 @@
+from common import get_logger
+from jamf.auth import JamfAuth
+
 from .api_items import api_values
 from .general import General
 from .groups import Groups
 from .mobile import Mobile
 from .users import Users
-
-from common import get_logger
-from jamf.auth import JamfAuth
 
 
 class Classic(

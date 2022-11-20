@@ -1,5 +1,4 @@
 import xml.sax.saxutils
-
 from collections import defaultdict
 from xml.etree import cElementTree as ElementTree
 
