@@ -26,7 +26,7 @@ j2s = Jamf2Snipe(env_vars=True)
 ```
 
 An example of where this is set:
-* In the [Snipe Class](snipe/__init__.py#L54)
+* In the [Snipe Class](snipe/__init__.py#L53)
 * This calls the `get_config` function. If `env_vars` is set to True, the function will pull the values from the [environment](common/auth.py#L51-53).
 
 # Logging
