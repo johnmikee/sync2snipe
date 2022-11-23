@@ -22,6 +22,7 @@ class ToSnipe:
         )
         self.created_assets = {}
         self.models = self.get_models()
+        self.users = self.get_users()
 
     def _log_leveler(self):
         if self.args.verbose:
@@ -40,6 +41,11 @@ class ToSnipe:
 
     def _get_snipe_args(self):
         runtimeargs = argparse.ArgumentParser()
+        runtimeargs.add_argument(
+            "--create-missing-users",
+            help="Create users if they are missing in Snipe-IT.",
+            action="store_true",
+        )
         runtimeargs.add_argument(
             "-d",
             "--debug",
@@ -111,8 +117,6 @@ class ToSnipe:
         """
         Find a valid settings.conf file.
         """
-        self.log.info("Searching for a valid settings.conf file.")
-
         valid_opts = [
             "/opt/stuff2snipe/settings.json",
             "/etc/stuff2snipe/settings.json",
@@ -181,16 +185,32 @@ class ToSnipe:
         res = self.snipe.patch_asset(asset_id=machine_id, **kwargs)
         self.log.debug(f"response from updating {serial}: {res}")
 
-    def checkout_assets(self, assets: list[dict]) -> None:
-        if assets:
-            if len(assets):
-                with ThreadPoolExecutor(max_workers=10) as executor:
-                    for asset in assets:
-                        executor.submit(
-                            self._checkout_snipe_assets,
-                            asset["asset_id"],
-                            asset["assigned_user"],
-                        )
+    def checkout_assets(self, assets: dict) -> None:
+        if not self.args.dryrun:
+            for key, values in assets.items():
+                if values:
+                    for asset in values:
+                        with ThreadPoolExecutor(max_workers=10) as executor:
+                            for asset in values:
+                                if key == "no_user":
+                                    executor.submit(
+                                        self._checkout_snipe_assets,
+                                        asset["asset_id"],
+                                        asset["assigned_user"],
+                                    )
+                                    continue
+
+                                executor.submit(
+                                    self._update_snipe_machines(
+                                        asset["serial"],
+                                        asset["asset_id"],
+                                        ** {
+                                            k: v
+                                            for k, v in asset.items()
+                                            if k not in ["serial", "asset_id"]
+                                        },
+                                    )
+                                )
 
     def create_new_asset(self, new_assets: list) -> None:
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -237,7 +257,7 @@ class ToSnipe:
 
         snipe_models = self.snipe.get_models()
         self.log.debug(
-            f"Parsing the {snipe_models['rows']} model results for models with model numbers."
+            f"Parsing the snipe model results for models with model numbers: {snipe_models['rows']}"
         )
 
         for model in snipe_models["rows"]:
@@ -260,6 +280,22 @@ class ToSnipe:
         )
 
         return snipe_models
+
+    def get_users(self) -> dict:
+        """
+        get a list of users from Snipe-IT
+        """
+        users = {}
+
+        self.log.info("Getting a list of users currently in Snipe-IT.")
+
+        snipe_users = self.snipe.get_users()
+        self.log.debug(f"Parsing the snipe users: {snipe_users}.")
+
+        for user in snipe_users:
+            users[user["id"]] = user["username"]
+
+        return users
 
     def update_existing_snipe(self, updates: dict) -> None:
         if updates:
@@ -323,3 +359,23 @@ class ToSnipe:
             update_info.append(new_asset)
 
         return update_info
+
+    def user_checker(self, user: str, create: bool = True, **kwargs) -> tuple[bool:str]:
+        """
+        this will check if the user exists in snipe.
+        if create is True the user will be created if they do not exist.
+        """
+        exists = [self.users[i] for i in self.users if self.users[i] == user]
+        if exists:
+            return True, [i for i in self.users if self.users[i] == user][0]
+
+        if create:
+            res = self.snipe.create_user(
+                first_name=kwargs["first_name"],
+                last_name=kwargs["last_name"],
+                username=user,
+            )
+            if res.get("status") == "success":
+                return True, res["payload"]["id"]
+
+        return False, ""

@@ -1,5 +1,5 @@
 import argparse
-import json
+
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
@@ -56,22 +56,29 @@ class Jamf2Snipe(ToSnipe):
             action="store_true",
         )
         user_opts.add_argument(
-            "-ui",
-            "--users_inverse",
-            help="Checks out the item to the current user in Jamf if it's already deployed",
-            action="store_true",
-        )
-        user_opts.add_argument(
             "-uf",
             "--users_force",
             help="Checks out the item to the user specified in Jamf no matter what",
             action="store_true",
         )
-        runtimeargs.add_argument(
-            "-uns",
-            "--users_no_search",
-            help="Doesn't search for any users if the specified fields in Jamf and Snipe don't match. (case insensitive)",
+        user_opts.add_argument(
+            "-ui",
+            "--users-inverse",
+            help="Checks out the item to the current user in Jamf if it's already deployed",
             action="store_true",
+        )
+        user_opts.add_argument(
+            "-uae",
+            "--users-are-emails",
+            help="This flag will append your domain to the username.",
+            action="store_true",
+        )
+        runtimeargs.add_argument(
+            "-ued",
+            "--users-email-domain",
+            help="Domain to append onto user names.",
+            default="",
+            type=str,
         )
         type_opts = runtimeargs.add_mutually_exclusive_group()
         type_opts.add_argument(
@@ -91,57 +98,63 @@ class Jamf2Snipe(ToSnipe):
 
     def set_conf(self) -> SimpleNamespace:
         """
-        check the config file for correct mappings and
-        do some tests to see if the old settings.conf file is in use
+        check the config file for correct mappings
         """
         self.config = self.validate_conf()
 
         SETTINGS_CORRECT = True
-        if hasattr(self.config, "api-mapping"):
-            self.log.error(
-                """
-                Looks like you're using the old method for api-mapping.
-                Please use computers_mapping and mobile_mapping.
-                """
-            )
-            SETTINGS_CORRECT = False
 
-        if not hasattr(self.config, "user_mapping") and (
-            self.args.users or self.args.users_force or self.args.users_inverse
-        ):
-            self.log.error(
+        if not hasattr(self.config, "jamf"):
+            self.log.debug(
                 """
-                You've chosen to check out assets to users in some capacity using a cmdline switch,
-                but not specified how you want to search Snipe IT for the users from Jamf.
-                Make sure you have a 'user-mapping' section in your settings.conf file.
+                No jamf config specified. This may be fine depending on flags passed.
                 """
             )
-            SETTINGS_CORRECT = False
+            if self.args.users or self.args.users_force or self.args.users_inverse:
+                self.log.error(
+                    """
+                    You've chosen to check out assets to users in some capacity using a cmdline switch,
+                    but not specified how you want to search Snipe IT for the users from Jamf.
+                    Make sure you have a 'user_mapping' section in your settings file under the jamf options.
+                    """
+                )
+                SETTINGS_CORRECT = False
 
         if not SETTINGS_CORRECT:
             raise SystemExit("Invalid settings. Please validate and try again.")
 
         # Check the config file for valid jamf subsets.
-        # This is based off the JAMF API and if it's not right we can't map fields over to SNIPE properly.
-        self.log.debug(
-            "Checking the settings.conf file for valid JAMF subsets of the JAMF API so mapping can occur properly."
-        )
+        self.log.debug("Checking the settings.json file for valid Jamf options.")
 
-        valid_mappings = [
-            i for i in self.config.computers_mapping.name if i in VALID_SUBSET
-        ]
-        if valid_mappings:
-            self.log.info(f"Found subset {valid_mappings}: Acceptable")
-        else:
-            self.log.error(
-                f"""
-                Found invalid subset: {self.config.computers_mapping.name} in the settings.conf file.
-                This is not in the acceptable list of subsets - check your settings.conf.
+        if self.args.users or self.args.users_force or self.args.users_inverse:
+            if self.args.computers:
+                try:
+                    valid_mapping = [
+                        self.config.jamf.computers_mapping.user_name.key in VALID_SUBSET
+                    ][0]
+                except AttributeError as e:
+                    self.log.info(
+                        f"Could not find a valid mapping for computer users: {e}"
+                    )
 
-                Valid subsets are: {', '.join(VALID_SUBSET)}
-                """
-            )
-            raise SystemExit("Invalid Subset found in settings.conf")
+            if self.args.mobiles:
+                try:
+                    valid_mapping = [
+                        self.config.jamf.mobiles_mapping.user_name.key in VALID_SUBSET
+                    ][0]
+                except AttributeError as e:
+                    self.log.info(
+                        f"Could not find a valid mapping for mobile users: {e}"
+                    )
+
+            if valid_mapping:
+                self.log.info(f"Found subset {valid_mapping}: Acceptable")
+
+        if self.args.users_are_emails:
+            if self.args.users_email_domain == "":
+                raise Exception(
+                    "If users are emails is set you must provide the domain."
+                )
 
         return self.validate_conf()
 
@@ -224,9 +237,9 @@ class Jamf2Snipe(ToSnipe):
     def _attribute_adder(self, asset_info: dict, asset_type: str) -> dict:
         attributes = {}
         if asset_type == "computer":
-            mapping = self.config.computers_mapping.__dict__
+            mapping = self.config.jamf.computers_mapping.__dict__
         if asset_type == "mobile":
-            mapping = self.config.mobile_mapping.__dict__
+            mapping = self.config.jamf.mobiles_mapping.__dict__
 
         for name, values in mapping.items():
             self.log.debug(f"checking for match on {name}")
@@ -243,14 +256,26 @@ class Jamf2Snipe(ToSnipe):
                                 jamf_value = attribute["value"]
                                 self.log.debug(f"match on {item}: {jamf_value}")
                     else:
-                        self.log.debug(item)
-                        self.log.debug(jamf_value)
                         jamf_value = jamf_value[item]
                         self.log.debug(f"match on {item}: {jamf_value}")
 
                     attributes[item] = jamf_value
 
         return attributes
+
+    def _user_email_validator(self, user: str) -> str:
+        """
+        in certain cases the jamf user will not match the snipe user
+        if the user is synced from an IdP where the user login is their
+        email. this will append the domain to the user string if needed.
+        """
+        if not user.endswith(self.args.users_email_domain):
+            fixed_user = f"{user}{self.args.users_email_domain}"
+            self.log.debug(f"changing {user} to {fixed_user}")
+
+            return fixed_user
+
+        return user
 
     def _gather_all_jamf_machine_info(
         self, machine_id: int, machine_type: str, update_dict: str
@@ -295,7 +320,6 @@ class Jamf2Snipe(ToSnipe):
         }
 
         # add the remaining top level keys from the jamf response.
-
         [
             update_dict[machine_id].update({item: res[item]})
             for item in res
@@ -398,9 +422,9 @@ class Jamf2Snipe(ToSnipe):
                     asset_info=asset_info, asset_type=asset_type
                 )
                 self.log.debug(f"generated payload: {payload}")
-            except Exception:
+            except Exception as e:
                 self.log.debug(
-                    "Skipping the payload, because the jamf key we're mapping to doesn't exist"
+                    f"Skipping the payload, because the jamf key we're mapping to doesn't exist: {e}"
                 )
                 continue
 
@@ -509,72 +533,100 @@ class Jamf2Snipe(ToSnipe):
 
         return jamf_computers, jamf_mobiles
 
-    def prepare_asset_checkout(
-        self, assets: list, snipe_machines: dict, update_dict: dict
-    ) -> list[dict]:
+    def checkout_to_users(
+        self, machine_type: str, assets: list, update_dict: dict, create: bool = False
+    ) -> dict[str : list[dict]]:
 
-        mapping = self.config.user_mapping.jamf_api_field
+        # these are very likely the same mapping in most cases
+        # but flexibility ya know?
+        if machine_type == "computer":
+            user_mapping = self.config.jamf.computers_mapping.user_name
+            if create:
+                full_name_mapping = self.config.jamf.computers_mapping.full_name
+        if machine_type == "mobile":
+            user_mapping = self.config.jamf.mobiles_mapping.user_name
+            if create:
+                full_name_mapping = self.config.jamf.mobiles_mapping.full_name
 
-        if len(mapping) != 2:
-            self.log.error("the jamf user mapping must be a list with two values.")
-            # prune this list?
-            self.log.debug(
-                f"acceptable keys and values are: {json.dumps(self.jamf.api_values, sort_keys=True, indent=4)}"
-            )
-            return None
-
-        key = mapping[0]
-        value = mapping[1]
-
-        asset_updates = []
+        asset_updates = {
+            "force_update": [],
+            "no_user": [],
+            "user_mismatch": [],
+        }
 
         for asset in assets:
+            snipe_machine = asset
             asset_info = self._asset_by_serial(
                 serial=asset["serial"], machine_dict=update_dict
             )
-            snipe_machine = [
-                i for i in snipe_machines if asset["serial"] == i["serial"]
-            ]
+            if not asset_info.keys():
+                continue
 
-            if (
-                not (
-                    (self.args.users or self.args.users_inverse)
-                    and (snipe_machine["assigned_to"] is None) == self.args.users
+            asset_info = asset_info[next(iter(asset_info))]
+            jamf_user = self._user_email_validator(
+                asset_info[user_mapping.key][user_mapping.value]
+            )
+
+            # check if the user exists
+            create_info = {}
+            if create:
+                """
+                this assumes the real name is in a "Pied Piper" format.
+                If that is not the case you may need to switch this logic out.
+                """
+                create_user = asset_info[full_name_mapping.key][
+                    full_name_mapping.value
+                ].split(" ")
+                create_info = {
+                    "first_name": create_user[0],
+                    "last_name": create_user[1],
+                }
+
+            ok, snipe_uid = self.user_checker(
+                jamf_user, create=self.args.create_missing_users, **create_info
+            )
+            if not ok:
+                self.log.info(
+                    f"could not get user id for {jamf_user} in snipe - cannot check out the asset"
                 )
-                or self.args.users_force
-            ):
-                return None
+                continue
 
-            if snipe_machine["status_label"]["status_meta"] in (
-                "deployable",
-                "deployed",
-            ):
-                if asset_info.get(key):
-                    if value not in asset_info[key]:
-                        self.log.info(
-                            f"{value} not present for the device in {asset_info['all'][key]}. not checking it out."
-                        )
-                        continue
+            self.log.debug(f"{jamf_user} exists in snipe with ID-{snipe_uid}")
 
-                    if self.args.dryrun:
-                        self.log.info(
-                            f"would be checking out new item {asset_info['general']['name']} to user {asset_info[key][value]}"
-                        )
-                        continue
+            update_info = {
+                "asset_id": asset["id"],
+                "status_id": self.snipe.default_status,
+                "checkout_to_type": "user",
+                "assigned_user": snipe_uid,
+                "serial": asset["serial"],
+            }
 
-                    asset_updates.append(
-                        {
-                            "asset_id": self.created_assets[asset["serial"]],
-                            "status_id": self.snipe.default_status,
-                            "checkout_to_type": "user",
-                            "assigned_user": asset_info[key][value],
-                        }
-                    )
-                    self.log.info(
-                        f"checking out new item {asset_info['general']['name']} to user {asset_info[key][value]}"
-                    )
+            if snipe_machine["assigned_to"] is None:
+                self.log.debug(f'{snipe_machine["serial"]} not checked out to anyone')
+                asset_updates["no_user"].append(update_info)
+                continue
+
+            if snipe_machine["assigned_to"]["username"] != jamf_user:
+                self.log.debug(
+                    f'{snipe_machine["serial"]} is checked out to {snipe_machine["assigned_to"]["username"]} in snipe and {jamf_user} in jamf'
+                )
+                asset_updates["user_mismatch"].append(update_info)
+                continue
+
+            if self.args.users_force:
+                self.log.debug("forcing user sync")
+                asset_updates["force_update"].append(update_info)
+                continue
 
         self.log.debug(f"asset updates: {asset_updates}")
+
+        if self.args.dryrun:
+            for key, value in asset_updates.items():
+                if value:
+                    for asset in value:
+                        self.log.info(
+                            f"Would be checking out new item {asset['serial']} to user {jamf_user}:{snipe_uid}. Reason: {key}"
+                        )
 
         return asset_updates
 
@@ -645,25 +697,27 @@ class Jamf2Snipe(ToSnipe):
             update_dict=update_dict,
         )
 
-        # checkout to users if args specify it
-        prepared_assets = self.prepare_asset_checkout(
-            assets=new_asset_tags,
-            snipe_machines=snipe_machines,
+        # checkout to users if args specify it or if there is a need to update
+        prepared_assets = self.checkout_to_users(
+            assets=snipe_machines,
+            machine_type=machine_type,
             update_dict=update_dict,
         )
         self.checkout_assets(assets=prepared_assets)
 
         # only update the existing machines if jamf has more recent info
-        updates = self.existing_update_check(
-            asset_type=machine_type,
-            existing_snipe_serials=existing_snipe_serials,
-            snipe_machines=snipe_machines,
-        )
-        self.update_existing_snipe(updates=updates)
+        # updates = self.existing_update_check(
+        #     asset_type=machine_type,
+        #     existing_snipe_serials=existing_snipe_serials,
+        #     snipe_machines=snipe_machines,
+        # )
+        # self.update_existing_snipe(updates=updates)
 
 
 if __name__ == "__main__":
     j2s = Jamf2Snipe()
     computers, mobiles = j2s.get_active_ids()
-    j2s.update_machines(machines=computers, machine_type="computer")
-    j2s.update_machines(machines=mobiles, machine_type="mobile")
+    if j2s.args.computers:
+        j2s.update_machines(machines=computers, machine_type="computer")
+    if j2s.args.mobiles:
+        j2s.update_machines(machines=mobiles, machine_type="mobile")

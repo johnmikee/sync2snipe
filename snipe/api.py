@@ -22,6 +22,24 @@ class API:
 
         return body
 
+    def _offsetter(self, total: int, limit: int, offset=None) -> dict:
+        offset_range = []
+        if offset is None:
+            offset = limit
+
+        while True:
+            offset_range.append({"limit": limit, "offset": offset})
+
+            if (offset + limit) <= total:
+                offset += limit
+            elif (offset + limit) >= total:
+                offset = +((total - offset) + offset)
+
+            if offset == total:
+                break
+
+        return offset_range
+
     @sleep_and_retry
     @limits(calls=CALLS, period=RATE_LIMIT)
     def _requester(

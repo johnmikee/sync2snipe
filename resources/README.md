@@ -1,7 +1,6 @@
 # Acknowledgements
-The fancy looking gifs in the main [README](../README.md) were made using two wonderful tools
+The fancy looking gifs in the main [README](../README.md) were made using the wonderful tool:
 * [vhs](https://github.com/charmbracelet/vhs)
-* [t-rec-rs](https://github.com/sassman/t-rec-rs)
 
 # Use
 To create the vhs gifs for the [README](../README.md) do the following:

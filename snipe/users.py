@@ -24,9 +24,30 @@ class Users:
             "deleted": "",
             "all": "",
         }
-        query = self._opt_sorter(query_opts, **kwargs)
+        results = []
+        limit = 500
 
-        return self._requester("GET", "users", params=query)
+        input_query = self._opt_sorter(query_opts, **kwargs)
+
+        input_query.update({"offset": 0, "limit": limit})
+
+        res = self._requester("GET", "users", params=input_query, **kwargs)
+
+        [results.append(i) for i in res["rows"]]
+        self.log.debug(f"total number of users in snipe: {res['total']}")
+
+        offset_range = self._offsetter(total=res["total"], limit=limit)
+        for offset in offset_range:
+            input_query.update({"offset": offset["offset"], "limit": offset["limit"]})
+            res = self._requester(
+                "GET",
+                "users",
+                params=input_query,
+                **kwargs,
+            )
+            [results.append(i) for i in res["rows"]]
+
+        return results
 
     def create_user(
         self, first_name: str, last_name: str, username: str, password=None, **kwargs

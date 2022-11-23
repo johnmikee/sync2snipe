@@ -6,7 +6,7 @@ The goal of sync2snipe is to extend the functionality of jamf2snipe to other dat
 
 [tosnipe.py](tosnipe.py) acts as a base upon which to add additional items.
 
-By modularizing the codebase it should be fairly easy to mirror the logic in [jamf2.py](jamf2.py) to different MDM's, licensing data, Google Chrome devices, and more.
+By modularizing the codebase it should be fairly easy to mirror the logic in [j2s.py](j2s.py) to different MDM's, licensing data, Google Chrome devices, and more.
 
 Code has been included for each data source so that this program remains self sufficent as possible. I attempted to map out the wonderful [Snipe-IT API](https://snipe-it.readme.io/reference/api-overview) for each endpoint. This should feasibly allow most information to be updated in Snipe-IT without having to write new code.
 
@@ -14,11 +14,13 @@ Code has been included for each data source so that this program remains self su
 `python3 -m pip install -r requirements.txt`
 
 # Configuration
-The configuration resides in [settings.json](settings.json). This is a deviation from the `settings.conf` in jamf2snipe, but I found by using a json file the data was easier to parse and subsequently easier to read throughout the program.
+The configuration resides in [settings.json](settings.json).
+
+Each service syncing to Snipe-IT should have its own top level key with associated mappings as values.
 
 # Authentication
 By default, this will use [keyring](https://github.com/jaraco/keyring) to store your sensitive credentials in your keychain.
-![Alt Text](resources/gifs/key_ring_prompt.gif)
+![Alt Text](resources/gifs/keyring.gif)
 
 If you wish to use this program in a CI envrionment, or elsewhere, where the keychain is not a feasible option instantiate the class with `env_vars=True`.
 ```
@@ -44,14 +46,18 @@ There are two options to configure:
 There were several changes to the architecture of jamf2snipe in this program that should significantly increase the speed.
 
 Calls are made to Jamf and Snipe in the beggining to gather all of the information needed to compare what needs to be done. Subsequent calls to either API only occur when it is time to sync the information back to the source.
+
 # Usage
 All options show below
 ```
-python3 jamf2.py -h
-usage: jamf2.py [-h] [-d] [--disable-requests-logging] [--do_not_verify_ssl] [--dryrun] [-f] [-l] [-lf LOG_FILE] [-rt] [-s SETTINGS_FILE] [-v] [--auto_incrementing] [--do_not_update_jamf] [-u | -ui | -uf] [-uns] [-m | -c]
+./j2s.py -h
+usage: j2s.py [-h] [--create-missing-users] [-d] [--disable-requests-logging] [--do_not_verify_ssl] [--dryrun] [-f] [-l] [-lf LOG_FILE] [-rt] [-s SETTINGS_FILE] [-v]
+              [--auto_incrementing] [--do_not_update_jamf] [-u | -uf | -ui | -uae] [-ued USERS_EMAIL_DOMAIN] [-m | -c]
 
 options:
   -h, --help            show this help message and exit
+  --create-missing-users
+                        Create users if they are missing in Snipe-IT.
   -d, --debug           Sets logging to include additional DEBUG messages.
   --disable-requests-logging
                         In debug logging disables the requests library logs
@@ -68,10 +74,12 @@ options:
   --auto_incrementing   You can use this if you have auto-incrementing enabled in your snipe instance to utilize that instead of adding the Jamf ID for the asset tag.
   --do_not_update_jamf  Does not update Jamf with the asset tags stored in Snipe.
   -u, --users           Checks out the item to the current user in Jamf if it's not already deployed
-  -ui, --users_inverse  Checks out the item to the current user in Jamf if it's already deployed
   -uf, --users_force    Checks out the item to the user specified in Jamf no matter what
-  -uns, --users_no_search
-                        Doesn't search for any users if the specified fields in Jamf and Snipe don't match. (case insensitive)
+  -ui, --users-inverse  Checks out the item to the current user in Jamf if it's already deployed
+  -uae, --users-are-emails
+                        This flag will append your domain to the username.
+  -ued USERS_EMAIL_DOMAIN, --users-email-domain USERS_EMAIL_DOMAIN
+                        Domain to append onto user names.
   -m, --mobiles         Runs against the Jamf mobiles endpoint only.
   -c, --computers       Runs against the Jamf computers endpoint only.
 ```
@@ -79,12 +87,15 @@ options:
 If you pass the `--dryrun` flag the program will run through each item logging what it _would_ be doing.
 ![Alt Text](resources/gifs/dryrun.gif)
 
-This currently implements all flags from jamf2snipe.
+# Users are emails
+Passing the flag `--users-are-emails` will attempt to look up users in Snipe-IT by taking the username in Jamf and appending it with the domain provided. This may be useful if the IdP has your users login stored as emails while Jamf does not.
+* Note: this requires `--users-email-domain` to specify what domain to append.
+![Alt Text](resources/gifs/emails.gif)
 
 # Next Steps
 * Anyone who has built a *-2snipe program - please reach out! I would like to add support for anything the community needs.
 * I am working on code to sync ChromeOS, and other devices from Google Workspace, to Snipe. Following the pattern in this repo the Google API code will reside under [google](google).
-* Adding an example Github Action workflow to use for [jamf2.py]
+* Adding an example Github Action workflow to use for [j2s.py]
 * Writing tests.
 
 # Acknowledgements
