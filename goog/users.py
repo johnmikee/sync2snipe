@@ -1,5 +1,5 @@
 class Users:
-    def get_all_users(self):
+    def get_all_users(self) -> dict:
         sanitized = {}
 
         token = None
@@ -15,8 +15,6 @@ class Users:
                     "first_name": user["name"]["givenName"],
                     "last_name": user["name"]["familyName"],
                     "last_login": user["lastLoginTime"],
-                    "admin": user["isAdmin"],
-                    "suspended": user["suspended"],
                 }
 
             token = results.get("nextPageToken")
@@ -25,7 +23,7 @@ class Users:
 
         return sanitized
 
-    def get_user(self, user):
+    def get_user(self, user: str) -> dict:
         results = (
             self.admin_service.users()
             .list(
@@ -39,7 +37,7 @@ class Users:
 
         return results
 
-    def get_user_id(self, user):
+    def get_user_id(self, user: str) -> str:
         self.log.debug(f"getting user id for {user}")
         # pylint: disable=no-member
         results = (
@@ -55,10 +53,10 @@ class Users:
 
         return results["users"][0]["id"]
 
-    def get_user_token(self, user):
-        results = self.admin_service.tokens().list(userKey=user).execute()
-
+    def get_user_token(self, user: str) -> list:
         tokens = []
+
+        results = self.admin_service.tokens().list(userKey=user).execute()
 
         try:
             for r in results["items"]:
@@ -69,9 +67,9 @@ class Users:
         except KeyError:
             self.log.debug(f"{user} does not have any access tokens")
 
-        return results
+        return tokens
 
-    def get_user_ou(self, user, user_info=False):
+    def get_user_ou(self, user: str, user_info=False) -> str:
         if user_info:
             user_ou = user_info["users"][0]["orgUnitPath"]
         else:

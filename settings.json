@@ -29,6 +29,13 @@
 			}
 		}
 	},
+	"google": {
+		"chromeos_attributes": ["tpmVersionInfo", "serialNumber", "status", "lastEnrollmentTime", "lastSync", "annotatedUser", "model", "recentUsers"],
+		"manufacturer_create_assume": true,
+		"manufacturer_mapping": {
+			"Google": {"id":0, "name_contains": "Google"}
+		}
+	},
 	"snipe_it": {
 		"manufacturer_id": 2,
 		"default_status": 2,

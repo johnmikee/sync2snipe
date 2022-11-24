@@ -149,6 +149,7 @@ class Assets:
             "notes": "",
             "order_number": "",
         }
+
         payload = self._opt_sorter(opts, **kwargs)
 
         return self._requester("PATCH", f"hardware/{asset_id}", json=payload)
@@ -182,7 +183,7 @@ class Assets:
             "note": "",
         }
         payload = self._opt_sorter(opts, **kwargs)
-
+        print(payload)
         return self._requester("POST", f"hardware/{asset_id}/checkout", json=payload)
 
     def checkin_asset(self, asset_id: int, **kwargs) -> dict:

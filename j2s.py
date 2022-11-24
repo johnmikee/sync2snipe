@@ -39,12 +39,12 @@ class Jamf2Snipe(ToSnipe):
         runtimeargs = self._get_snipe_args()
 
         runtimeargs.add_argument(
-            "--auto_incrementing",
+            "--auto-incrementing",
             help="You can use this if you have auto-incrementing enabled in your snipe instance to utilize that instead of adding the Jamf ID for the asset tag.",
             action="store_true",
         )
         runtimeargs.add_argument(
-            "--do_not_update_jamf",
+            "--do-not-update-jamf",
             help="Does not update Jamf with the asset tags stored in Snipe.",
             action="store_false",
         )
@@ -57,7 +57,7 @@ class Jamf2Snipe(ToSnipe):
         )
         user_opts.add_argument(
             "-uf",
-            "--users_force",
+            "--users-force",
             help="Checks out the item to the user specified in Jamf no matter what",
             action="store_true",
         )
@@ -237,29 +237,29 @@ class Jamf2Snipe(ToSnipe):
     def _attribute_adder(self, asset_info: dict, asset_type: str) -> dict:
         attributes = {}
         if asset_type == "computer":
-            mapping = self.config.jamf.computers_mapping.__dict__
+            mapping = self.config.jamf.computers_mapping
         if asset_type == "mobile":
-            mapping = self.config.jamf.mobiles_mapping.__dict__
+            mapping = self.config.jamf.mobiles_mapping
 
-        for name, values in mapping.items():
-            self.log.debug(f"checking for match on {name}")
-            for i, item in enumerate(values):
-                # key off the top level value.
-                # thats where the remaining items in the list will potentially be
-                if i == 0:
-                    jamf_value = asset_info[item]
+        self.log.debug(f"checking for match on {mapping.key}")
+        if mapping.key not in self.jamf.api_values:
+            self.log.info(
+                f"{mapping.key} is not a valid option. Set this to one of the following: {list(self.jamf.api_values.keys())}"
+            )
+            return attributes
 
-                else:
-                    if values[0] == "extension_attributes":
-                        for attribute in jamf_value:
-                            if attribute["id"] == item:
-                                jamf_value = attribute["value"]
-                                self.log.debug(f"match on {item}: {jamf_value}")
-                    else:
-                        jamf_value = jamf_value[item]
-                        self.log.debug(f"match on {item}: {jamf_value}")
+        jamf_value = asset_info[mapping.key]
 
-                    attributes[item] = jamf_value
+        if mapping.value == "extension_attributes":
+            for attribute in jamf_value:
+                if attribute.get("id") == mapping.value:
+                    jamf_value = attribute["value"]
+                    self.log.debug(f"match on {mapping.value}: {jamf_value}")
+        else:
+            jamf_value = asset_info[mapping.key][mapping.value]
+            self.log.debug(f"match on {mapping.key}:{mapping.value}: {jamf_value}")
+
+        attributes[mapping.key] = jamf_value
 
         return attributes
 
@@ -562,6 +562,15 @@ class Jamf2Snipe(ToSnipe):
             if not asset_info.keys():
                 continue
 
+            if asset["status_label"]["status_meta"] not in [
+                "deployable",
+                "deployed",
+            ]:
+                self.log.info(
+                    f'{asset["serial"]} is not in a state we can checkout or update: {asset["status_label"]["status_meta"]}'
+                )
+                continue
+
             asset_info = asset_info[next(iter(asset_info))]
             jamf_user = self._user_email_validator(
                 asset_info[user_mapping.key][user_mapping.value]
@@ -601,8 +610,15 @@ class Jamf2Snipe(ToSnipe):
                 "serial": asset["serial"],
             }
 
+            if self.args.users_force:
+                self.log.debug("forcing user sync")
+                asset_updates["force_update"].append(update_info)
+                continue
+
             if snipe_machine["assigned_to"] is None:
-                self.log.debug(f'{snipe_machine["serial"]} not checked out to anyone')
+                self.log.debug(
+                    f'{snipe_machine["serial"]} not checked out to anyone: {snipe_machine["assigned_to"]}'
+                )
                 asset_updates["no_user"].append(update_info)
                 continue
 
@@ -611,11 +627,6 @@ class Jamf2Snipe(ToSnipe):
                     f'{snipe_machine["serial"]} is checked out to {snipe_machine["assigned_to"]["username"]} in snipe and {jamf_user} in jamf'
                 )
                 asset_updates["user_mismatch"].append(update_info)
-                continue
-
-            if self.args.users_force:
-                self.log.debug("forcing user sync")
-                asset_updates["force_update"].append(update_info)
                 continue
 
         self.log.debug(f"asset updates: {asset_updates}")
@@ -665,6 +676,7 @@ class Jamf2Snipe(ToSnipe):
         snipe_machines = self.snipe.get_all_hardware()
 
         # make sure they are unique
+        # pylint: disable=R1718
         existing_snipe_serials = list(set([i["serial"] for i in snipe_machines]))
 
         self.log.debug(f"following machines exist in snipe: {existing_snipe_serials}")
@@ -706,18 +718,19 @@ class Jamf2Snipe(ToSnipe):
         self.checkout_assets(assets=prepared_assets)
 
         # only update the existing machines if jamf has more recent info
-        # updates = self.existing_update_check(
-        #     asset_type=machine_type,
-        #     existing_snipe_serials=existing_snipe_serials,
-        #     snipe_machines=snipe_machines,
-        # )
-        # self.update_existing_snipe(updates=updates)
+        updates = self.existing_update_check(
+            asset_type=machine_type,
+            existing_snipe_serials=existing_snipe_serials,
+            snipe_machines=snipe_machines,
+        )
+        self.update_existing_snipe(updates=updates)
 
 
 if __name__ == "__main__":
     j2s = Jamf2Snipe()
+
     computers, mobiles = j2s.get_active_ids()
     if j2s.args.computers:
         j2s.update_machines(machines=computers, machine_type="computer")
-    if j2s.args.mobiles:
-        j2s.update_machines(machines=mobiles, machine_type="mobile")
+    # if j2s.args.mobiles:
+    #     j2s.update_machines(machines=mobiles, machine_type="mobile")

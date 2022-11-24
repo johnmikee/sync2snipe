@@ -13,6 +13,7 @@ class ChromeDevices:
         """
         if device.get(query):
             return device[query]
+
         return None
 
     def list_chromeos_devices(self) -> list:

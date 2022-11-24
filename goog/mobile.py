@@ -1,8 +1,13 @@
-from .errors import InvalidAction
+class InvalidAction(Exception):
+    """Invalid action performed"""
 
 
 class Mobile:
-    def get_mobile_devices(self, user, customer_id=False):
+    """
+    https://developers.google.com/admin-sdk/directory/reference/rest/v1/members
+    """
+
+    def get_mobile_devices(self, user: str, customer_id=False) -> (bool | dict):
         """
         https://developers.google.com/admin-sdk/directory/v1/reference/mobiledevices/get
 
@@ -31,7 +36,7 @@ class Mobile:
             )
             return False
 
-    def action_mobile_devices(self, action, device, user):
+    def action_mobile_devices(self, action: str, device: str, user: str) -> None:
         """
         https://developers.google.com/admin-sdk/directory/v1/reference/mobiledevices/action
         """

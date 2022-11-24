@@ -183,6 +183,7 @@ class ToSnipe:
 
     def _update_snipe_machines(self, serial: str, machine_id: int, **kwargs) -> None:
         res = self.snipe.patch_asset(asset_id=machine_id, **kwargs)
+
         self.log.debug(f"response from updating {serial}: {res}")
 
     def checkout_assets(self, assets: dict) -> None:
@@ -204,10 +205,16 @@ class ToSnipe:
                                     self._update_snipe_machines(
                                         asset["serial"],
                                         asset["asset_id"],
-                                        ** {
+                                        assigned_to=asset["assigned_user"],
+                                        **{
                                             k: v
                                             for k, v in asset.items()
-                                            if k not in ["serial", "asset_id"]
+                                            if k
+                                            not in [
+                                                "serial",
+                                                "asset_id",
+                                                "assigned_user",
+                                            ]
                                         },
                                     )
                                 )
@@ -220,7 +227,9 @@ class ToSnipe:
                     continue
                 executor.submit(self._asset_creator, asset)
 
-    def create_new_snipe_models(self, models: list[str], model_info: dict) -> None:
+    def create_new_snipe_models(
+        self, models: list[str], model_info: dict = {}, manufacturer_id=False
+    ) -> None:
         """
         create all the new models after gathering machine info
         """
@@ -228,11 +237,20 @@ class ToSnipe:
         for model in models:
             if model != "":
                 self.log.info(f"Could not find a model ID in snipe for: {model}")
+
+                if manufacturer_id is False:
+                    manufacturer_id = self.apple_manufacturer_id
+
+                if not model_info:
+                    model_number = model
+                else:
+                    model_number = model_info[model]
+
                 new_model = {
                     "category_id": self.config.snipe_it.computer_model_category_id,
-                    "manufacturer_id": self.apple_manufacturer_id,
+                    "manufacturer_id": manufacturer_id,
                     "name": model,
-                    "model_number": model_info[model],
+                    "model_number": model_number,
                 }
 
                 if hasattr(self.config.snipe_it, "computer_custom_fieldset_id"):
@@ -290,7 +308,7 @@ class ToSnipe:
         self.log.info("Getting a list of users currently in Snipe-IT.")
 
         snipe_users = self.snipe.get_users()
-        self.log.debug(f"Parsing the snipe users: {snipe_users}.")
+        self.log.debug("Parsing the snipe users.")
 
         for user in snipe_users:
             users[user["id"]] = user["username"]

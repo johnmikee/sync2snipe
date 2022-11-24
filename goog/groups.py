@@ -1,5 +1,5 @@
 class Groups:
-    def get_google_groups(self, user):
+    def get_google_groups(self, user: str) -> (bool | dict):
         """
         https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
         https://developers.google.com/admin-sdk/directory/v1/reference/members
