@@ -30,7 +30,7 @@
 		}
 	},
 	"google": {
-		"chromeos_attributes": ["tpmVersionInfo", "serialNumber", "status", "lastEnrollmentTime", "lastSync", "annotatedUser", "model", "recentUsers"],
+		"chromeos_attributes": ["annotatedAssetId", "tpmVersionInfo", "serialNumber", "status", "lastEnrollmentTime", "lastSync", "annotatedUser", "model", "recentUsers"],
 		"manufacturer_create_assume": true,
 		"manufacturer_mapping": {
 			"Google": {"id":0, "name_contains": "Google"}

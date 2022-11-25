@@ -1,9 +1,0 @@
-[main]
-configparser
-requests
-keyring
-ratelimit
-
-[google]
-google-api-python-client
-oauth2client

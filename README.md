@@ -11,7 +11,7 @@ By modularizing the codebase it should be fairly easy to mirror the logic in [j2
 Code has been included for each data source so that this program remains self sufficent as possible. I attempted to map out the wonderful [Snipe-IT API](https://snipe-it.readme.io/reference/api-overview) for each endpoint. This should feasibly allow most information to be updated in Snipe-IT without having to write new code.
 
 # Requirements
-`python3 -m pip install -r requirements.txt`
+`python3 -m pip install -r resources/requirements/global_reqs.txt`
 
 # Configuration
 The configuration resides in [settings.json](settings.json).

@@ -73,7 +73,6 @@ class Assets:
             "location_id": "",
         }
         payload = self._opt_sorter(opts, **kwargs)
-        self.log.debug(payload)
 
         return self._requester("POST", "hardware", json=payload)
 
