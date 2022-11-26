@@ -32,9 +32,7 @@ CHROME_OPTS = [
 
 class Google2Snipe(ToSnipe):
     """
-    Currently, this is a one way sync.
-
-    Information is pulled from Google Admin and then updated in Snipe.
+    sync chromeos devices to snipe and optionally write the asset tags back
     """
 
     def __init__(self, scopes: list = [], env_vars=False):
@@ -42,7 +40,6 @@ class Google2Snipe(ToSnipe):
         self.args = self._get_google2_args()
 
         super().__init__()
-
         self.config = self.set_conf()
         self.goog = Google(
             env_vars=env_vars,
@@ -58,6 +55,11 @@ class Google2Snipe(ToSnipe):
             "--chrome-os",
             help="Runs against the ChromeOS devices only.",
             action="store_true",
+        )
+        runtimeargs.add_argument(
+            "--do-not-update-google",
+            help="Does not update Google with the asset tags stored in Snipe.",
+            action="store_false",
         )
 
         return runtimeargs.parse_args()
@@ -93,26 +95,24 @@ class Google2Snipe(ToSnipe):
 
         return asset_info
 
-    def _google_asset_creator(self, asset: dict) -> None:
-        self.log.info(f"creating a new asset: {asset}")
-        res = self.snipe.create_asset(
-            asset_tag=asset["annotatedUser"],
-            status_id=self.snipe.default_status,
-            model_id=self.snipe.model_numbers[asset["model"]],
-        )
-        self.log.debug(
-            f"response from creating asset: {res['messages']} : {res['payload']}"
-        )
-        if res.get("status") == "success":
-            self.created_assets[asset["serial"]] = res["payload"]["id"]
+    def create_new_google_asset(self, new_assets: list) -> None:
+        for asset in new_assets:
+            if self.args.dryrun:
+                self.log.info(f"would be creating a new asset: {asset}")
+                continue
 
-    def create_new_gogle_asset(self, new_assets: list) -> None:
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            for asset in new_assets:
-                if self.args.dryrun:
-                    self.log.info(f"would be creating a new asset: {asset}")
-                    continue
-                executor.submit(self._chrome_asset_creator, asset)
+            self.log.info(f"creating a new asset: {asset}")
+            res = self.snipe.create_asset(
+                asset_tag=asset["annotatedAssetId"],
+                status_id=self.snipe.default_status,
+                serial=asset["serialNumber"],
+                model_id=self.snipe.model_numbers[asset["model"]],
+            )
+            self.log.debug(
+                f"response from creating asset: {res['messages']} : {res['payload']}"
+            )
+            if res.get("status") == "success":
+                self.created_assets[asset["serialNumber"]] = res["payload"]["id"]
 
     def get_chromeos_devices(self) -> dict:
         # get some values
@@ -129,7 +129,7 @@ class Google2Snipe(ToSnipe):
                 self.log.info(f"would be creating {manufacturer}")
                 continue
 
-            res = self.snipe.create_manufacturer(manufacturer=manufacturer)
+            res = self.snipe.create_manufacturer(name=manufacturer)
             self.log.info(f"results from creating {manufacturer}: {res}")
             if res.get("status") == "success":
                 existing.update({res["payload"]["id"]: manufacturer})
@@ -142,7 +142,7 @@ class Google2Snipe(ToSnipe):
         for model in create_models:
             if model.split(" ")[0] in existing_manufacturers.values():
                 manufacturer_id = [
-                    existing_manufacturers[m]
+                    m
                     for m in existing_manufacturers
                     if existing_manufacturers[m]
                     in [model.split(" ")[0] for model in create_models]
@@ -155,7 +155,7 @@ class Google2Snipe(ToSnipe):
                         would be creating a new model:
                         name = {model}
                         model_number = {model}
-                        category_id = {self.config.snipe_it.computer_model_category_id}
+                        category_id = {self.config.google.manufacturer_mapping.google.category_id}
                         manufacturer_id = {manufacturer_id}
                         """
                         )
@@ -164,33 +164,61 @@ class Google2Snipe(ToSnipe):
                     res = self.snipe.create_models(
                         name=model,
                         model_number=model,
-                        category_id=self.config.snipe_it.computer_model_category_id,
+                        category_id=self.config.google.manufacturer_mapping.google.category_id,
                         manufacturer_id=manufacturer_id,
                     )
 
                     self.log.info(f"response from creating {model}: {res}")
                     if res.get("status") == "success":
                         self.snipe.model_numbers[model] = res["payload"]["id"]
+            else:
+                self.log.debug(f"need to create manufacturer for {model}")
 
-    def generate_asset_tags(self, asset_type: str, update_dict: dict) -> list[dict]:
+    def generate_asset_tags(
+        self, asset_type: str, missing_machines: dict
+    ) -> list[dict]:
+        """
+        the device ID in chrome is a fairly long string.
+        we take the last 12 of the ID for the asset tag.
+        """
         self.log.info("checking what we need to generate asset tags for")
+
         new_assets = []
-        for device in update_dict:
+        for device in missing_machines:
             if hasattr(self.config.snipe_it, "asset_tag"):
                 # this needs looking at
                 asset_tag = self.config.snipe_it.asset_tag
 
             else:
                 if asset_type == "chrome_os":
-                    asset_tag = f"google-chromeos-id-{device}"
+                    asset_tag = f'google-chromeos-id-{device.split("-")[-1]}'
 
             self.log.debug(
-                f"adding asset tag {asset_tag} to {update_dict[device]['serialNumber']}"
+                f"adding asset tag {asset_tag} to {missing_machines[device]['serialNumber']}"
             )
-            update_dict[device].update({"annotatedAssetId": asset_tag})
-            new_assets.append(device)
+            missing_machines[device].update({"annotatedAssetId": asset_tag})
+
+            new_assets.append(missing_machines[device])
 
         return new_assets
+
+    def update_google_tags(self, update_tags: list[dict]):
+        """
+        format the data how the google api wants it
+        """
+        for update in update_tags:
+            if not self.args.do_not_update_google:
+                if self.args.dryrun:
+                    self.log.debug(f"would be updating asset tag on {update['serial']}")
+                    continue
+
+                self.goog.patch_chromeos_device(
+                    device_id=update["machine_id"], annotatedAssetId=update["asset_tag"]
+                )
+
+            self.log.debug(
+                f"not updating {update['serial']} because the args said nope"
+            )
 
     def validate_asset_tags(self, machine_info: dict) -> dict:
         no_tags = []
@@ -254,7 +282,7 @@ class Google2Snipe(ToSnipe):
         existing_snipe_serials = list(set([i["serial"] for i in snipe_machines]))
 
         self.log.debug(f"following machines exist in snipe: {existing_snipe_serials}")
-        self.log.debug(f"following machines exist in jamf: {google_serials}")
+        self.log.debug(f"following machines exist in google: {google_serials}")
 
         # find out which are missing
         missing_machines = [
@@ -276,11 +304,124 @@ class Google2Snipe(ToSnipe):
         # see which machines are missing asset tags
         missing_google_tags = self.validate_asset_tags(machine_info=machines)
         # generate asset tags
-        new_tags = self.generate_asset_tags(
-            asset_type=asset_type, update_dict=missing_google_tags
+        new_assets = self.generate_asset_tags(
+            asset_type=asset_type, missing_machines=updates
         )
         # create missing machines
-        new_machines = self.create_new_google_asset(new_assets=new_tags)
+        self.create_new_google_asset(new_assets=new_assets)
+
+        # get info to sync asset tags
+        tag_updates = self.asset_tag_sync(
+            asset_key="annotatedAssetId",
+            existing_snipe_serials=existing_snipe_serials,
+            serial_key="serialNumber",
+            snipe_machines=snipe_machines,
+            source="google",
+            update_dict=machines,
+        )
+
+        # sync time
+        self.update_google_tags(tag_updates)
+
+    def check_users(self, assets: dict, update_dict: dict) -> None:
+        """
+        assets: dictionary of all snipe machines
+        update_dict: dictionary of all google machines
+        """
+        asset_updates = {
+            "force_update": [],
+            "no_user": [],
+            "user_mismatch": [],
+        }
+
+        for asset in assets:
+            snipe_machine = asset
+            asset_info = self._asset_by_serial(
+                serial=asset["serial"], machine_dict=update_dict
+            )
+            self.log.info(snipe_machine)
+            self.log.info(asset_info)
+        #     if not asset_info.keys():
+        #         continue
+
+        #     if asset["status_label"]["status_meta"] not in [
+        #         "deployable",
+        #         "deployed",
+        #     ]:
+        #         self.log.info(
+        #             f'{asset["serialNumber"]} is not in a state we can checkout or update: {asset["status_label"]["status_meta"]}'
+        #         )
+        #         continue
+
+        #     asset_info = asset_info[next(iter(asset_info))]
+        #     jamf_user = self._user_email_validator(
+        #         asset_info[user_mapping.key][user_mapping.value]
+        #     )
+
+        #     # check if the user exists
+        #     create_info = {}
+        #     if create:
+        #         """
+        #         this assumes the real name is in a "Pied Piper" format.
+        #         If that is not the case you may need to switch this logic out.
+        #         """
+        #         create_user = asset_info[full_name_mapping.key][
+        #             full_name_mapping.value
+        #         ].split(" ")
+        #         create_info = {
+        #             "first_name": create_user[0],
+        #             "last_name": create_user[1],
+        #         }
+
+        #     ok, snipe_uid = self.user_checker(
+        #         jamf_user, create=self.args.create_missing_users, **create_info
+        #     )
+        #     if not ok:
+        #         self.log.info(
+        #             f"could not get user id for {jamf_user} in snipe - cannot check out the asset"
+        #         )
+        #         continue
+
+        #     self.log.debug(f"{jamf_user} exists in snipe with ID-{snipe_uid}")
+
+        #     update_info = {
+        #         "asset_id": asset["id"],
+        #         "status_id": self.snipe.default_status,
+        #         "checkout_to_type": "user",
+        #         "assigned_user": snipe_uid,
+        #         "serial": asset["serial"],
+        #     }
+
+        #     if self.args.users_force:
+        #         self.log.debug("forcing user sync")
+        #         asset_updates["force_update"].append(update_info)
+        #         continue
+
+        #     if snipe_machine["assigned_to"] is None:
+        #         self.log.debug(
+        #             f'{snipe_machine["serial"]} not checked out to anyone: {snipe_machine["assigned_to"]}'
+        #         )
+        #         asset_updates["no_user"].append(update_info)
+        #         continue
+
+        #     if snipe_machine["assigned_to"]["username"] != jamf_user:
+        #         self.log.debug(
+        #             f'{snipe_machine["serial"]} is checked out to {snipe_machine["assigned_to"]["username"]} in snipe and {jamf_user} in jamf'
+        #         )
+        #         asset_updates["user_mismatch"].append(update_info)
+        #         continue
+
+        # self.log.debug(f"asset updates: {asset_updates}")
+
+        # if self.args.dryrun:
+        #     for key, value in asset_updates.items():
+        #         if value:
+        #             for asset in value:
+        #                 self.log.info(
+        #                     f"Would be checking out new item {asset['serial']} to user {jamf_user}:{snipe_uid}. Reason: {key}"
+        #                 )
+
+        # return asset_updates
 
 
 g = Google2Snipe(
@@ -292,8 +433,8 @@ g = Google2Snipe(
         "https://www.googleapis.com/auth/admin.directory.device.chromeos",
     ],
 )
-
 res = g.get_chromeos_devices()
+g.modeler(machines=res)
+g.creator(asset_type="chrome_os", machines=res)
 
-print(res)
 # g.modeler(machines=res)

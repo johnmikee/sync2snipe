@@ -336,57 +336,6 @@ class Jamf2Snipe(ToSnipe):
         )
         self.log.debug(f"response from updating {serial} in jamf: {res.text}")
 
-    def asset_tag_sync(
-        self,
-        existing_snipe_serials: list,
-        machine_type: str,
-        snipe_machines: dict,
-        update_dict: dict,
-    ) -> list[dict]:
-        """
-        Update/Sync the Snipe Asset Tag Number back to jamf
-        The user arg below is set to false if it's called, so this would fail if the user called it.
-        """
-        updates = []
-        for serial in existing_snipe_serials:
-            snipe_machine = [i for i in snipe_machines if serial == i["serial"]][0]
-            asset_info = {k: v for k, v in update_dict.items() if v["serial"] == serial}
-
-            if not asset_info.keys():
-                continue
-
-            asset_info = asset_info[next(iter(asset_info))]
-
-            if (
-                asset_info["asset_tag"] != snipe_machine["asset_tag"]
-            ) and self.args.do_not_update_jamf:
-                self.log.info(
-                    f"jamf doesn't have the same asset tag, {asset_info['asset_tag']}, as snipe, {snipe_machine['asset_tag']}, so we'll update it."
-                )
-                if snipe_machine["asset_tag"]:
-                    if self.args.dryrun:
-                        self.log.info(
-                            f"would be updating {serial} in jamf with the asset tag {asset_info['asset_tag']} => {snipe_machine['asset_tag']}"
-                        )
-                        continue
-                    updates.append(
-                        {
-                            "asset_tag": snipe_machine["asset_tag"],
-                            "machine_id": asset_info["general"]["id"],
-                            "serial": serial,
-                        }
-                    )
-
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            for update in updates:
-                executor.submit(
-                    self._sync_asset_tags,
-                    update["asset_tag"],
-                    update["machine_id"],
-                    machine_type,
-                    update["serial"],
-                )
-
     def existing_update_check(
         self, asset_type: str, existing_snipe_serials: list, snipe_machines: dict
     ) -> dict[int:[dict]]:
@@ -502,6 +451,17 @@ class Jamf2Snipe(ToSnipe):
             new_assets.append({"info": asset_info, "tag": asset_tag})
 
         return new_assets
+
+    def sync_jamf_tags(self, machine_type: str, updates: dict):
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            for update in updates:
+                executor.submit(
+                    self._sync_asset_tags,
+                    update["asset_tag"],
+                    update["machine_id"],
+                    machine_type,
+                    update["serial"],
+                )
 
     def get_active_ids(self) -> tuple[dict, dict]:
         """
@@ -702,12 +662,15 @@ class Jamf2Snipe(ToSnipe):
         )
         self.create_new_asset(new_assets=new_asset_tags)
         # get the asset tags sync'd up
-        self.asset_tag_sync(
+        tag_updates = self.asset_tag_sync(
+            asset_key="asset_tag",
             existing_snipe_serials=existing_snipe_serials,
+            serial_key="serial",
             snipe_machines=snipe_machines,
-            machine_type=machine_type,
+            source="jamf",
             update_dict=update_dict,
         )
+        self.sync_jamf_tags(machine_type=machine_type, updates=tag_updates)
 
         # checkout to users if args specify it or if there is a need to update
         prepared_assets = self.checkout_to_users(

@@ -177,7 +177,7 @@ class ToSnipe:
             name=model["name"],
             model_number=model["model_number"],
             category_id=model["category_id"],
-            manufacturer_id=model["manufacturer_id"],
+            manufacturer_id=self.snipe.model_numbers[model["model"]],
         )
         self.log.info(f"response from creating {model['name']}: {res}")
 
@@ -185,6 +185,60 @@ class ToSnipe:
         res = self.snipe.patch_asset(asset_id=machine_id, **kwargs)
 
         self.log.debug(f"response from updating {serial}: {res}")
+
+    def asset_tag_sync(
+        self,
+        asset_key: str,
+        existing_snipe_serials: list,
+        serial_key: str,
+        snipe_machines: dict,
+        source: str,
+        update_dict: dict,
+    ) -> list[dict]:
+        """
+        Update/Sync the Snipe Asset Tag Number back to the source
+        """
+        updates = []
+        for serial in existing_snipe_serials:
+            snipe_machine = [i for i in snipe_machines if serial == i["serial"]][0]
+            asset_dict = {
+                k: v for k, v in update_dict.items() if v[serial_key] == serial
+            }
+
+            if not asset_dict.keys():
+                continue
+
+            asset_info = asset_dict[next(iter(asset_dict))]
+
+            if not (asset_info.get(asset_key)) or (
+                asset_info.get(asset_key) != snipe_machine["asset_tag"]
+            ):
+                if source == "jamf":
+                    machine_id = asset_info["general"]["id"]
+
+                if source == "google":
+                    machine_id = list(asset_dict.keys())[0]
+
+                self.log.info(
+                    f"{source} doesn't have the same asset tag as snipe, {snipe_machine['asset_tag']}, so we'll update it."
+                )
+
+                if snipe_machine.get("asset_tag"):
+                    if self.args.dryrun:
+                        self.log.info(
+                            f"would be updating {serial} in {source} with the asset tag {asset_info[asset_key]} => {snipe_machine['asset_tag']}"
+                        )
+                        continue
+
+                    updates.append(
+                        {
+                            "asset_tag": snipe_machine["asset_tag"],
+                            "machine_id": machine_id,
+                            "serial": serial,
+                        }
+                    )
+
+        return updates
 
     def checkout_assets(self, assets: dict) -> None:
         if not self.args.dryrun:

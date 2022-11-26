@@ -16,6 +16,39 @@ class ChromeDevices:
 
         return None
 
+    def _chromeos_opt_validator(self, opts: list) -> list:
+        valid_opts = [
+            "kind",
+            "etag",
+            "deviceId",
+            "serialNumber",
+            "status",
+            "lastSync",
+            "annotatedUser",
+            "model",
+            "osVersion",
+            "platformVersion",
+            "firmwareVersion",
+            "macAddress",
+            "bootMode",
+            "lastEnrollmentTime",
+            "firstEnrollmentTime",
+            "orgUnitPath",
+            "orgUnitId",
+            "recentUsers",
+            "ethernetMacAddress",
+            "activeTimeRanges",
+            "tpmVersionInfo",
+            "cpuStatusReports",
+            "systemRamTotal",
+            "systemRamFreeReports",
+            "diskVolumeReports",
+            "autoUpdateExpiration",
+            "cpuInfo",
+        ]
+
+        return [i for i in opts if i in valid_opts]
+
     def list_chromeos_devices(self) -> list:
         """
         https://developers.google.com/admin-sdk/directory/reference/rest/v1/chromeosdevices/get
@@ -78,37 +111,6 @@ class ChromeDevices:
             autoUpdateExpiration
             cpuInfo
         """
-        valid_opts = [
-            "kind",
-            "etag",
-            "deviceId",
-            "serialNumber",
-            "status",
-            "lastSync",
-            "annotatedUser",
-            "model",
-            "osVersion",
-            "platformVersion",
-            "firmwareVersion",
-            "macAddress",
-            "bootMode",
-            "lastEnrollmentTime",
-            "firstEnrollmentTime",
-            "orgUnitPath",
-            "orgUnitId",
-            "recentUsers",
-            "ethernetMacAddress",
-            "activeTimeRanges",
-            "tpmVersionInfo",
-            "cpuStatusReports",
-            "systemRamTotal",
-            "systemRamFreeReports",
-            "diskVolumeReports",
-            "autoUpdateExpiration",
-            "cpuInfo",
-        ]
-
-        opts = [i for i in opts if i in valid_opts]
 
         if not devices:
             devices = self.list_chromeos_devices()
@@ -116,7 +118,9 @@ class ChromeDevices:
         sorted = {}
 
         for d in devices:
-            sorted[d["deviceId"]] = {o: self.checker(d, o) for o in opts}
+            sorted[d["deviceId"]] = {
+                o: self.checker(d, o) for o in self._chromeos_opt_validator(opts=opts)
+            }
 
         return sorted
 
@@ -127,5 +131,27 @@ class ChromeDevices:
         return (
             self.admin_service.chromeosdevices()
             .get(customerId="my_customer", deviceId=device_id)
+            .execute()
+        )
+
+    def patch_chromeos_device(self, device_id: str, **kwargs) -> dict:
+        """
+        https://developers.google.com/admin-sdk/directory/reference/rest/v1/chromeosdevices/patch
+        """
+        valid_opts = [
+            "annotatedUser",
+            "annotatedLocation",
+            "notes",
+            "orgUnitPath",
+            "annotatedAssetId",
+        ]
+        for k in kwargs:
+            if k not in valid_opts:
+                self.log.info(f"removing invalid patch arg: {k}")
+                kwargs.pop(k)
+
+        return (
+            self.admin_service.chromeosdevices()
+            .patch(customerId="my_customer", deviceId=device_id, body=kwargs)
             .execute()
         )
