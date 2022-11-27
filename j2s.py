@@ -48,38 +48,6 @@ class Jamf2Snipe(ToSnipe):
             help="Does not update Jamf with the asset tags stored in Snipe.",
             action="store_false",
         )
-        user_opts = runtimeargs.add_mutually_exclusive_group()
-        user_opts.add_argument(
-            "-u",
-            "--users",
-            help="Checks out the item to the current user in Jamf if it's not already deployed",
-            action="store_true",
-        )
-        user_opts.add_argument(
-            "-uf",
-            "--users-force",
-            help="Checks out the item to the user specified in Jamf no matter what",
-            action="store_true",
-        )
-        user_opts.add_argument(
-            "-ui",
-            "--users-inverse",
-            help="Checks out the item to the current user in Jamf if it's already deployed",
-            action="store_true",
-        )
-        user_opts.add_argument(
-            "-uae",
-            "--users-are-emails",
-            help="This flag will append your domain to the username.",
-            action="store_true",
-        )
-        runtimeargs.add_argument(
-            "-ued",
-            "--users-email-domain",
-            help="Domain to append onto user names.",
-            default="",
-            type=str,
-        )
         type_opts = runtimeargs.add_mutually_exclusive_group()
         type_opts.add_argument(
             "-m",
@@ -262,20 +230,6 @@ class Jamf2Snipe(ToSnipe):
         attributes[mapping.key] = jamf_value
 
         return attributes
-
-    def _user_email_validator(self, user: str) -> str:
-        """
-        in certain cases the jamf user will not match the snipe user
-        if the user is synced from an IdP where the user login is their
-        email. this will append the domain to the user string if needed.
-        """
-        if not user.endswith(self.args.users_email_domain):
-            fixed_user = f"{user}{self.args.users_email_domain}"
-            self.log.debug(f"changing {user} to {fixed_user}")
-
-            return fixed_user
-
-        return user
 
     def _gather_all_jamf_machine_info(
         self, machine_id: int, machine_type: str, update_dict: str
@@ -596,7 +550,7 @@ class Jamf2Snipe(ToSnipe):
                 if value:
                     for asset in value:
                         self.log.info(
-                            f"Would be checking out new item {asset['serial']} to user {jamf_user}:{snipe_uid}. Reason: {key}"
+                            f"Would be checking out {asset['serial']} to user {asset['assigned_user']}. Reason: {key}"
                         )
 
         return asset_updates

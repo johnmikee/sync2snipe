@@ -44,6 +44,7 @@ class ChromeDevices:
             "systemRamFreeReports",
             "diskVolumeReports",
             "autoUpdateExpiration",
+            "annotatedAssetId",
             "cpuInfo",
         ]
 

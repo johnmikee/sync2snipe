@@ -100,6 +100,37 @@ class ToSnipe:
             type=str,
         )
         runtimeargs.add_argument(
+            "-u",
+            "--users",
+            help="Checks out the item to the current user in the source if it's not already deployed",
+            action="store_true",
+        )
+        runtimeargs.add_argument(
+            "-uf",
+            "--users-force",
+            help="Checks out the item to the user specified in the source no matter what",
+            action="store_true",
+        )
+        runtimeargs.add_argument(
+            "-ui",
+            "--users-inverse",
+            help="Checks out the item to the current user in the source if it's already deployed",
+            action="store_true",
+        )
+        runtimeargs.add_argument(
+            "-uae",
+            "--users-are-emails",
+            help="This flag will append your domain to the username.",
+            action="store_true",
+        )
+        runtimeargs.add_argument(
+            "-ued",
+            "--users-email-domain",
+            help="Domain to append onto user names.",
+            default="",
+            type=str,
+        )
+        runtimeargs.add_argument(
             "-v",
             "--verbose",
             help="Sets the logging level to INFO and gives you a better idea of what the script is doing.",
@@ -171,6 +202,20 @@ class ToSnipe:
             assigned_user=assigned_user,
         )
         self.log.debug(f"response from checking out device: {res}")
+
+    def _user_email_validator(self, user: str) -> str:
+        """
+        in certain cases the machine user will not match the snipe user
+        if the user is synced from an IdP where the user login is their
+        email. this will append the domain to the user string if needed.
+        """
+        if not user.endswith(self.args.users_email_domain):
+            fixed_user = f"{user}{self.args.users_email_domain}"
+            self.log.debug(f"changing {user} to {fixed_user}")
+
+            return fixed_user
+
+        return user
 
     def _model_creator(self, model: dict) -> None:
         res = self.snipe.create_models(
@@ -432,7 +477,9 @@ class ToSnipe:
 
         return update_info
 
-    def user_checker(self, user: str, create: bool = True, **kwargs) -> tuple[bool:str]:
+    def user_checker(
+        self, user: str, create: bool = False, **kwargs
+    ) -> tuple[bool:str]:
         """
         this will check if the user exists in snipe.
         if create is True the user will be created if they do not exist.

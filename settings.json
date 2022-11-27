@@ -48,7 +48,8 @@
 				"name_contains": "Google",
 				"category_id": 4
 			}
-		}
+		},
+		"user_key": "annotatedUser"
 	},
 	"snipe_it": {
 		"manufacturer_id": 2,

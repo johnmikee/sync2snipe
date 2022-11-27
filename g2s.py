@@ -89,9 +89,9 @@ class Google2Snipe(ToSnipe):
         return config
 
     def _asset_by_serial(self, serial: str, machine_dict: dict) -> dict:
-        asset_info = {
-            k: v for k, v in machine_dict.items() if v["serialNumber"] == serial
-        }
+        asset_info = [i for i in machine_dict if i["serial"] == serial]
+        if asset_info:
+            return asset_info[0]
 
         return asset_info
 
@@ -323,7 +323,7 @@ class Google2Snipe(ToSnipe):
         # sync time
         self.update_google_tags(tag_updates)
 
-    def check_users(self, assets: dict, update_dict: dict) -> None:
+    def check_users(self, snipe_assets: dict, google_assets: dict) -> None:
         """
         assets: dictionary of all snipe machines
         update_dict: dictionary of all google machines
@@ -334,94 +334,94 @@ class Google2Snipe(ToSnipe):
             "user_mismatch": [],
         }
 
-        for asset in assets:
-            snipe_machine = asset
+        for item in google_assets:
+            snipe_machine = google_assets[item]["serialNumber"]
             asset_info = self._asset_by_serial(
-                serial=asset["serial"], machine_dict=update_dict
+                serial=snipe_machine, machine_dict=snipe_assets
             )
-            self.log.info(snipe_machine)
-            self.log.info(asset_info)
-        #     if not asset_info.keys():
-        #         continue
 
-        #     if asset["status_label"]["status_meta"] not in [
-        #         "deployable",
-        #         "deployed",
-        #     ]:
-        #         self.log.info(
-        #             f'{asset["serialNumber"]} is not in a state we can checkout or update: {asset["status_label"]["status_meta"]}'
-        #         )
-        #         continue
+            if not asset_info:
+                self.log.debug(f"could not get info in snipe for {snipe_machine}")
+                continue
 
-        #     asset_info = asset_info[next(iter(asset_info))]
-        #     jamf_user = self._user_email_validator(
-        #         asset_info[user_mapping.key][user_mapping.value]
-        #     )
+            if asset_info["status_label"]["status_meta"] not in [
+                "deployable",
+                "deployed",
+            ]:
+                self.log.info(
+                    f'{snipe_machine} is not in a state we can checkout or update: {asset["status_label"]["status_meta"]}'
+                )
+                continue
 
-        #     # check if the user exists
-        #     create_info = {}
-        #     if create:
-        #         """
-        #         this assumes the real name is in a "Pied Piper" format.
-        #         If that is not the case you may need to switch this logic out.
-        #         """
-        #         create_user = asset_info[full_name_mapping.key][
-        #             full_name_mapping.value
-        #         ].split(" ")
-        #         create_info = {
-        #             "first_name": create_user[0],
-        #             "last_name": create_user[1],
-        #         }
+            if google_assets[item][self.config.google.user_key] is None:
+                # there are cases when the annotatedUser is None. For this,
+                # we fall back to recent users.
+                #
+                # there can be multiple users in recentUsers - I dont have a
+                # good solution for which one is the right one, so we default
+                # to the first in the list.
+                if google_assets[item]["recentUsers"][0]["email"] is None:
+                    self.log.debug(f"cannot find user for {snipe_machine}")
+                    continue
+                else:
+                    user = google_assets[item]["recentUsers"][0]["email"]
+            else:
+                user = google_assets[item][self.config.google.user_key]
 
-        #     ok, snipe_uid = self.user_checker(
-        #         jamf_user, create=self.args.create_missing_users, **create_info
-        #     )
-        #     if not ok:
-        #         self.log.info(
-        #             f"could not get user id for {jamf_user} in snipe - cannot check out the asset"
-        #         )
-        #         continue
+            google_user = self._user_email_validator(user)
 
-        #     self.log.debug(f"{jamf_user} exists in snipe with ID-{snipe_uid}")
+            # check if the user exists
+            ok, snipe_uid = self.user_checker(
+                google_user,
+                create=False,
+            )
 
-        #     update_info = {
-        #         "asset_id": asset["id"],
-        #         "status_id": self.snipe.default_status,
-        #         "checkout_to_type": "user",
-        #         "assigned_user": snipe_uid,
-        #         "serial": asset["serial"],
-        #     }
+            if not ok:
+                self.log.info(
+                    f"could not get user id for {google_user} in snipe - cannot check out the asset"
+                )
+                continue
 
-        #     if self.args.users_force:
-        #         self.log.debug("forcing user sync")
-        #         asset_updates["force_update"].append(update_info)
-        #         continue
+            self.log.debug(f"{google_user} exists in snipe with ID-{snipe_uid}")
 
-        #     if snipe_machine["assigned_to"] is None:
-        #         self.log.debug(
-        #             f'{snipe_machine["serial"]} not checked out to anyone: {snipe_machine["assigned_to"]}'
-        #         )
-        #         asset_updates["no_user"].append(update_info)
-        #         continue
+            update_info = {
+                "asset_id": asset_info["id"],
+                "status_id": self.snipe.default_status,
+                "checkout_to_type": "user",
+                "assigned_user": snipe_uid,
+                "serial": snipe_machine,
+            }
 
-        #     if snipe_machine["assigned_to"]["username"] != jamf_user:
-        #         self.log.debug(
-        #             f'{snipe_machine["serial"]} is checked out to {snipe_machine["assigned_to"]["username"]} in snipe and {jamf_user} in jamf'
-        #         )
-        #         asset_updates["user_mismatch"].append(update_info)
-        #         continue
+            if self.args.users_force:
+                self.log.debug("forcing user sync")
+                asset_updates["force_update"].append(update_info)
+                continue
 
-        # self.log.debug(f"asset updates: {asset_updates}")
+            if asset_info["assigned_to"] is None:
+                self.log.debug(
+                    f'{snipe_machine} not checked out to anyone: {asset_info["assigned_to"]}'
+                )
+                asset_updates["no_user"].append(update_info)
+                continue
 
-        # if self.args.dryrun:
-        #     for key, value in asset_updates.items():
-        #         if value:
-        #             for asset in value:
-        #                 self.log.info(
-        #                     f"Would be checking out new item {asset['serial']} to user {jamf_user}:{snipe_uid}. Reason: {key}"
-        #                 )
+            if asset_info["assigned_to"]["username"] != google_user:
+                self.log.debug(
+                    f'{snipe_machine} is checked out to {asset_info["assigned_to"]["username"]} in snipe and {google_user} in google'
+                )
+                asset_updates["user_mismatch"].append(update_info)
+                continue
 
-        # return asset_updates
+        self.log.debug(f"asset updates: {asset_updates}")
+
+        if self.args.dryrun:
+            for key, value in asset_updates.items():
+                if value:
+                    for asset in value:
+                        self.log.info(
+                            f"Would be checking out {asset['serial']} to user {asset['assigned_user']}. Reason: {key}"
+                        )
+
+        return asset_updates
 
 
 g = Google2Snipe(
@@ -434,7 +434,9 @@ g = Google2Snipe(
     ],
 )
 res = g.get_chromeos_devices()
-g.modeler(machines=res)
-g.creator(asset_type="chrome_os", machines=res)
+user_updates = g.check_users(g.snipe.get_all_hardware(), res)
+g.checkout_assets(assets=user_updates)
+# g.modeler(machines=res)
+# g.creator(asset_type="chrome_os", machines=res)
 
 # g.modeler(machines=res)
