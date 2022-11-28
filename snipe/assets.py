@@ -1,22 +1,4 @@
 class Assets:
-    def _offsetter(self, total: int, limit: int, offset=None) -> dict:
-        offset_range = []
-        if offset is None:
-            offset = limit
-
-        while True:
-            offset_range.append({"limit": limit, "offset": offset})
-
-            if (offset + limit) <= total:
-                offset += limit
-            elif (offset + limit) >= total:
-                offset = +((total - offset) + offset)
-
-            if offset == total:
-                break
-
-        return offset_range
-
     def get_all_hardware(self, **kwargs) -> dict:
         """
         https://snipe-it.readme.io/reference/hardware-list
@@ -91,7 +73,6 @@ class Assets:
             "location_id": "",
         }
         payload = self._opt_sorter(opts, **kwargs)
-        self.log.debug(payload)
 
         return self._requester("POST", "hardware", json=payload)
 
@@ -167,6 +148,7 @@ class Assets:
             "notes": "",
             "order_number": "",
         }
+
         payload = self._opt_sorter(opts, **kwargs)
 
         return self._requester("PATCH", f"hardware/{asset_id}", json=payload)
@@ -200,7 +182,7 @@ class Assets:
             "note": "",
         }
         payload = self._opt_sorter(opts, **kwargs)
-
+        print(payload)
         return self._requester("POST", f"hardware/{asset_id}/checkout", json=payload)
 
     def checkin_asset(self, asset_id: int, **kwargs) -> dict:

@@ -11,7 +11,6 @@ class Models:
     def create_models(
         self,
         name: str,
-        model_number: str,
         category_id: int,
         manufacturer_id: int,
         **kwargs,
@@ -21,15 +20,15 @@ class Models:
         """
         opts = {
             "name": name,
-            "model_number": model_number,
+            "model_number": "",
             "category_id": category_id,
             "manufacturer_id": manufacturer_id,
             "eol": "",
             "fieldset_id": "",
         }
-        query = self._opt_sorter(opts, **kwargs)
+        body = self._opt_sorter(opts, **kwargs)
 
-        return self._requester("POST", "models", params=query)
+        return self._requester("POST", "models", json=body)
 
     def get_model(self, model_id: int) -> dict:
         """

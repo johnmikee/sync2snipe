@@ -1,21 +1,60 @@
 {
-    "jamf": {
-    },
-    "snipe_it": {
-        "manufacturer_id": 2,
-        "default_status": 2,
-        "computer_model_category_id": 2,
-        "mobile_model_category_id": 3
-    },
-    "computers_mapping": {
-        "name": ["general", "name"],
-        "_snipeit_mac_address_1": ["general", "mac_address"]
-    },
-    "mobile_mapping": {
-        "_snipeit_imei_4": ["network", "imei"],
-        "name": ["general", "name"]
-    },
-    "user_mapping": {
-        "jamf_api_field": ["location", "username"]
-    }
+	"jamf": {
+		"computers_mapping": {
+			"user_name": {
+				"key": "location",
+				"value": "username"
+			},
+			"full_name": {
+				"key": "location",
+				"value": "realname"
+			},
+			"device_name": {
+				"key": "general",
+				"value": "name"
+			}
+		},
+		"mobiles_mapping": {
+			"user_name": {
+				"key": "location",
+				"value": "username"
+			},
+			"full_name": {
+				"key": "location",
+				"value": "realname"
+			},
+			"device_name": {
+				"key": "general",
+				"value": "name"
+			}
+		}
+	},
+	"google": {
+		"chromeos_attributes": [
+			"annotatedAssetId",
+			"tpmVersionInfo",
+			"serialNumber",
+			"status",
+			"lastEnrollmentTime",
+			"lastSync",
+			"annotatedUser",
+			"model",
+			"recentUsers"
+		],
+		"manufacturer_create_assume": true,
+		"manufacturer_mapping": {
+			"google": {
+				"id": 0,
+				"name_contains": "Google",
+				"category_id": 4
+			}
+		},
+		"user_key": "annotatedUser"
+	},
+	"snipe_it": {
+		"manufacturer_id": 2,
+		"default_status": 2,
+		"computer_model_category_id": 2,
+		"mobile_model_category_id": 3
+	}
 }

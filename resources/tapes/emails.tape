@@ -1,18 +1,15 @@
 # Where should we write the GIF?
-Output dryrun.gif
+Output emails.gif
 
 # Set up a 1200x600 terminal with 46px font.
-Set FontSize 24
+Set FontSize 32
 Set Width 1800
-Set Height 400
+Set Height 200
 
 # Show the Output
 Show
 
 # Type a command in the terminal.
-Type "python3 j2s.py --dryrun --verbose"
+Type 'python3 j2s.py --users-are-emails --users-email-domain="@foo.com"'
 
-# Simulate hitting enter
-Enter
-
-Sleep 10
+Sleep 5
