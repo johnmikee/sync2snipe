@@ -1,11 +1,9 @@
 import argparse
-
-from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 
 from goog import Google
 from tosnipe import ToSnipe
-
 
 CHROME_OPTS = [
     "osVersion",

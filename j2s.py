@@ -1,5 +1,4 @@
 import argparse
-
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
